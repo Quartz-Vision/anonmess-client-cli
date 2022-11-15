@@ -17,7 +17,7 @@ type KeyBuffer struct {
 
 func NewKeyBuffer(keyId KeyId) (obj *KeyBuffer, err error) {
 	obj = &KeyBuffer{
-		storage:        storage.NewRawFsStorage(storage.DataPath("key-" + string(keyId))),
+		storage:        storage.NewRawFsStorage(keyPath(keyId)),
 		currentPostion: POS_REWIND,
 		buf:            make([]byte, settings.Config.KeysBufferSizeB),
 	}

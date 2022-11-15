@@ -6,6 +6,9 @@ import (
 )
 
 // Returns the path in context of the app data dir
-func DataPath(path string) string {
-	return filepath.Join(settings.Config.AppDataDirPath, path)
+func DataPath(paths ...string) string {
+	return filepath.Join(
+		settings.Config.AppDataDirPath,
+		filepath.Join(paths...),
+	)
 }

@@ -10,19 +10,21 @@ import (
 )
 
 var Config = struct {
-	AppName               string
-	AppConfigFileName     string
-	AppDataDefaultDirName string
-	AppDataDirPath        string `env:"PROGRAM_DATA_DIR" envDefault:""`
-	KeysBufferSizeKB      int64  `env:"KEYS_BUFFER_SIZE_KB" envDefault:"1024"`
-	KeysBufferSizeB       int64
-	ServerHost            string `env:"SERVER_HOST" envDefault:"localhost"`
-	ServerPort            int64  `env:"SERVER_PORT" envDefault:"8081"`
-	ServerAddr            string
+	AppName                   string
+	AppConfigFileName         string
+	AppDataDefaultDirName     string
+	AppDataDirPath            string `env:"PROGRAM_DATA_DIR" envDefault:""`
+	KeysBufferSizeKB          int64  `env:"KEYS_BUFFER_SIZE_KB" envDefault:"1024"`
+	KeysBufferSizeB           int64
+	ServerHost                string `env:"SERVER_HOST" envDefault:"localhost"`
+	ServerPort                int64  `env:"SERVER_PORT" envDefault:"8081"`
+	ServerAddr                string
+	KeysStorageDefaultDirName string
 }{
-	AppName:               "anonmess",
-	AppConfigFileName:     "anonmess.conf",
-	AppDataDefaultDirName: "data",
+	AppName:                   "anonmess",
+	AppConfigFileName:         "anonmess.conf",
+	AppDataDefaultDirName:     "data",
+	KeysStorageDefaultDirName: "keys",
 }
 
 func tryLoadEnv(paths ...string) bool {
