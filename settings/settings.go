@@ -3,6 +3,7 @@ package settings
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/joho/godotenv"
@@ -12,12 +13,15 @@ var Config = struct {
 	AppName               string
 	AppConfigFileName     string
 	AppDataDefaultDirName string
-	ProgramDataDir        string `env:"PROGRAM_DATA_DIR" envDefault:""`
+	AppDataDirPath        string `env:"PROGRAM_DATA_DIR" envDefault:""`
 	KeysBufferSizeKB      int64  `env:"KEYS_BUFFER_SIZE_KB" envDefault:"1024"`
 	KeysBufferSizeB       int64
+	ServerHost            string `env:"SERVER_HOST" envDefault:"localhost"`
+	ServerPort            int64  `env:"SERVER_PORT" envDefault:"8081"`
+	ServerAddr            string
 }{
 	AppName:               "anonmess",
-	AppConfigFileName:     "app.conf",
+	AppConfigFileName:     "anonmess.conf",
 	AppDataDefaultDirName: "data",
 }
 
@@ -37,7 +41,7 @@ func Init() error {
 	}
 
 	configPaths := []string{
-		filepath.Join("/etc", Config.AppName+".conf.d", Config.AppConfigFileName),
+		filepath.Join("/etc", Config.AppConfigFileName),
 		filepath.Join(userConfigDir, Config.AppName, Config.AppConfigFileName),
 		filepath.Join(userHomeDir, "."+Config.AppName, Config.AppConfigFileName),
 	}
@@ -51,17 +55,18 @@ func Init() error {
 		return ErrEnvParsing
 	}
 
-	// Config.ServerAddr = Config.ServerHost + ":" + strconv.FormatInt(int64(Config.ServerPort), 10)
+	// .ServerAddr
+	Config.ServerAddr = Config.ServerHost + ":" + strconv.FormatInt(int64(Config.ServerPort), 10)
 
-	// .ProgramDataDir
-	if Config.ProgramDataDir == "" {
-		Config.ProgramDataDir = filepath.Join(userHomeDir, "."+Config.AppName, Config.AppDataDefaultDirName)
+	// .AppDataDirPath
+	if Config.AppDataDirPath == "" {
+		Config.AppDataDirPath = filepath.Join(userHomeDir, "."+Config.AppName, Config.AppDataDefaultDirName)
 	} else {
-		path, err := filepath.Abs(Config.ProgramDataDir)
+		path, err := filepath.Abs(Config.AppDataDirPath)
 		if err != nil {
 			return ErrEnvParsing
 		}
-		Config.ProgramDataDir = path
+		Config.AppDataDirPath = path
 	}
 
 	// .KeysBufferSizeB

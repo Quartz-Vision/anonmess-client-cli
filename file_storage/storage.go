@@ -6,7 +6,7 @@ import (
 )
 
 func Init() (err error) {
-	if err := os.MkdirAll(settings.Config.ProgramDataDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(settings.Config.AppDataDirPath, os.ModePerm); err != nil {
 		return err
 	}
 	return nil

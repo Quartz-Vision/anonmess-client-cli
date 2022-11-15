@@ -51,7 +51,7 @@ func BenchmarkReadKey(b *testing.B) {
 		for i := int64(0); i < 200; i++ {
 			_, err := buf.GetKeySlice((i*10)<<10, 1024)
 			if err != nil {
-				fmt.Println("FUCK NO KEY")
+				fmt.Println("NO KEY")
 				return
 			}
 		}

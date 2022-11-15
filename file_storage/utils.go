@@ -7,5 +7,5 @@ import (
 
 // Returns the path in context of the app data dir
 func DataPath(path string) string {
-	return filepath.Join(settings.Config.ProgramDataDir, path)
+	return filepath.Join(settings.Config.AppDataDirPath, path)
 }

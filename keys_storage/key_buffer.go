@@ -2,8 +2,8 @@ package keysstorage
 
 import (
 	"io"
+	storage "quartzvision/anonmess-client-cli/file_storage"
 	"quartzvision/anonmess-client-cli/settings"
-	"quartzvision/anonmess-client-cli/storage"
 )
 
 const POS_REWIND = -1
