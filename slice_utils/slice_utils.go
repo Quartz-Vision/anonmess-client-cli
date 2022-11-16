@@ -11,7 +11,7 @@ func Xor(a []byte, b []byte) {
 		bPointer := unsafe.Pointer(&b[0])
 
 		for i := uint(0); i < chunks_count; i++ {
-			*(*int64)(unsafe.Add(aPointer, i<<3)) ^= *(*int64)(unsafe.Add(bPointer, i<<3))
+			*(*uint64)(unsafe.Add(aPointer, i<<3)) ^= *(*uint64)(unsafe.Add(bPointer, i<<3))
 		}
 	}
 
@@ -29,7 +29,7 @@ func IsEqual(a []byte, b []byte) (ok bool) {
 		bPointer := unsafe.Pointer(&b[0])
 
 		for i := uint(0); i < chunks_count; i++ {
-			if *(*int64)(unsafe.Add(aPointer, i<<3)) != *(*int64)(unsafe.Add(bPointer, i<<3)) {
+			if *(*uint64)(unsafe.Add(aPointer, i<<3)) != *(*uint64)(unsafe.Add(bPointer, i<<3)) {
 				return false
 			}
 		}

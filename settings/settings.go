@@ -10,21 +10,25 @@ import (
 )
 
 var Config = struct {
-	AppName                   string
-	AppConfigFileName         string
-	AppDataDefaultDirName     string
-	AppDataDirPath            string `env:"PROGRAM_DATA_DIR" envDefault:""`
-	KeysBufferSizeKB          int64  `env:"KEYS_BUFFER_SIZE_KB" envDefault:"1024"`
-	KeysBufferSizeB           int64
-	ServerHost                string `env:"SERVER_HOST" envDefault:"localhost"`
-	ServerPort                int64  `env:"SERVER_PORT" envDefault:"8081"`
-	ServerAddr                string
-	KeysStorageDefaultDirName string
+	AppName                    string
+	AppConfigFileName          string
+	AppDataDefaultDirName      string
+	AppDataDirPath             string `env:"PROGRAM_DATA_DIR" envDefault:""`
+	KeysBufferSizeKB           int64  `env:"KEYS_BUFFER_SIZE_KB" envDefault:"1024"`
+	KeysBufferSizeB            int64
+	KeysStartSizeMB            int64 `env:"KEYS_START_SIZE_MB" envDefault:"1"`
+	KeysStartSizeB             int64
+	ServerHost                 string `env:"SERVER_HOST" envDefault:"localhost"`
+	ServerPort                 int64  `env:"SERVER_PORT" envDefault:"8081"`
+	ServerAddr                 string
+	KeysStorageDefaultDirName  string
+	CacheStorageDefaultDirName string
 }{
-	AppName:                   "anonmess",
-	AppConfigFileName:         "anonmess.conf",
-	AppDataDefaultDirName:     "data",
-	KeysStorageDefaultDirName: "keys",
+	AppName:                    "anonmess",
+	AppConfigFileName:          "anonmess.conf",
+	AppDataDefaultDirName:      "data",
+	KeysStorageDefaultDirName:  "keys",
+	CacheStorageDefaultDirName: "cache",
 }
 
 func tryLoadEnv(paths ...string) bool {
@@ -76,6 +80,11 @@ func Init() error {
 		return ErrEnvParsing
 	}
 	Config.KeysBufferSizeB = Config.KeysBufferSizeKB << 10
+	// .KeysStartSizeB
+	if Config.KeysStartSizeMB < 1 {
+		return ErrEnvParsing
+	}
+	Config.KeysStartSizeB = Config.KeysStartSizeMB << 20
 
 	return nil
 }

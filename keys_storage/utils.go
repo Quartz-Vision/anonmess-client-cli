@@ -1,10 +1,11 @@
 package keysstorage
 
 import (
-	"github.com/google/uuid"
-	"path/filepath"
 	storage "quartzvision/anonmess-client-cli/file_storage"
 	"quartzvision/anonmess-client-cli/settings"
+	"strings"
+
+	"github.com/google/uuid"
 )
 
 const PACK_PREFIX_IN = "in-"
@@ -14,8 +15,7 @@ const PACK_PREFIX_PAYLOAD_KEY = "data-"
 
 // Returns the path in context of the app data dir
 func keyPath(packId uuid.UUID, prefixes ...string) string {
-	prefix := filepath.Join(prefixes...)
-	return storage.DataPath(settings.Config.KeysStorageDefaultDirName, prefix, packId.String())
+	return storage.DataPath(settings.Config.KeysStorageDefaultDirName, strings.Join(prefixes, "")+packId.String())
 }
 
 func safeClose(obj Closable) {

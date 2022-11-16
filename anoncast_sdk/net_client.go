@@ -1,4 +1,4 @@
-package netclient
+package anoncastsdk
 
 import (
 	"encoding/binary"

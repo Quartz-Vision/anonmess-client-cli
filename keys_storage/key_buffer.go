@@ -2,6 +2,7 @@ package keysstorage
 
 import (
 	"io"
+	"quartzvision/anonmess-client-cli/crypto/random"
 	storage "quartzvision/anonmess-client-cli/file_storage"
 	"quartzvision/anonmess-client-cli/settings"
 )
@@ -68,6 +69,28 @@ func (obj *KeyBuffer) AppendKey(data []byte) (pos int64, err error) {
 func (obj *KeyBuffer) UpdateLengthFromFile() (err error) {
 	obj.KeyLength, err = obj.storage.Len()
 	return err
+}
+
+func (obj *KeyBuffer) GenerateKey(length int64) (err error) {
+	if rest := length % settings.Config.KeysBufferSizeB; rest != 0 {
+		if key, err := random.GenerateRandomBytes(rest); err != nil {
+			return err
+		} else {
+			obj.AppendKey(key)
+		}
+	}
+
+	length = length / settings.Config.KeysBufferSizeB
+
+	for i := int64(0); i < length; i++ {
+		if key, err := random.GenerateRandomBytes(settings.Config.KeysBufferSizeB); err != nil {
+			return err
+		} else {
+			obj.AppendKey(key)
+		}
+	}
+
+	return nil
 }
 
 func (obj *KeyBuffer) Close() {

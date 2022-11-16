@@ -1,8 +1,9 @@
 package app
 
 import (
+	cachestorage "quartzvision/anonmess-client-cli/cache_storage"
 	"quartzvision/anonmess-client-cli/cli"
-	storage "quartzvision/anonmess-client-cli/file_storage"
+	keysstorage "quartzvision/anonmess-client-cli/keys_storage"
 	"quartzvision/anonmess-client-cli/settings"
 	"quartzvision/anonmess-client-cli/utils"
 )
@@ -10,7 +11,8 @@ import (
 func Init() error {
 	return utils.UntilFirstError([]utils.ErrFn{
 		settings.Init,
-		storage.Init,
+		cachestorage.Init,
+		keysstorage.Init,
 		cli.Init,
 	})
 }
