@@ -1,14 +1,15 @@
-package client
+package netclient
 
 import (
 	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
+	"quartzvision/anonmess-client-cli/settings"
 )
 
-func Init() (err error) {
-	conn, err := net.Dial("tcp", "0.0.0.0:8081")
+func Start() (err error) {
+	conn, err := net.Dial("tcp", settings.Config.ServerAddr)
 
 	if err != nil {
 		return err
