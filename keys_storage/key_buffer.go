@@ -15,9 +15,9 @@ type KeyBuffer struct {
 	KeyLength      int64
 }
 
-func NewKeyBuffer(keyId KeyId) (obj *KeyBuffer, err error) {
+func NewKeyBuffer(path string) (obj *KeyBuffer, err error) {
 	obj = &KeyBuffer{
-		storage:        storage.NewRawFsStorage(keyPath(keyId)),
+		storage:        storage.NewRawFsStorage(path),
 		currentPostion: POS_REWIND,
 		buf:            make([]byte, settings.Config.KeysBufferSizeB),
 	}

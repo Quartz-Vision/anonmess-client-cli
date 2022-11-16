@@ -2,35 +2,100 @@ package keysstorage
 
 import (
 	quartzSymmetric "quartzvision/anonmess-client-cli/crypto/symmetric"
+	sliceutils "quartzvision/anonmess-client-cli/slice_utils"
+
+	"github.com/google/uuid"
 )
 
-var Keys = map[KeyId]*KeyBuffer{}
+type KeyPack struct {
+	IdKey      *KeyBuffer
+	PayloadKey *KeyBuffer
+}
 
-func ManageKey(keyId KeyId) (err error) {
-	if _, ok := Keys[keyId]; ok {
-		return
+func NewKeyPack(packId uuid.UUID, prefix string) (keyPack *KeyPack, err error) {
+	keyPack = &KeyPack{}
+
+	if buf, err := NewKeyBuffer(keyPath(packId, prefix, PACK_PREFIX_ID_KEY)); err != nil {
+		return nil, err
+	} else {
+		keyPack.IdKey = buf
 	}
-	Keys[keyId], err = NewKeyBuffer(keyId)
+
+	if buf, err := NewKeyBuffer(keyPath(packId, prefix, PACK_PREFIX_PAYLOAD_KEY)); err != nil {
+		return nil, err
+	} else {
+		keyPack.PayloadKey = buf
+	}
+
+	return keyPack, nil
+}
+
+func (obj *KeyPack) Close() {
+	safeClose(obj.IdKey)
+	safeClose(obj.PayloadKey)
+}
+
+type KeyIOPack struct {
+	InKeys  *KeyPack
+	OutKeys *KeyPack
+}
+
+func NewKeyIOPack(packId uuid.UUID) (keyIOPack *KeyIOPack, err error) {
+	keyIOPack = &KeyIOPack{}
+
+	if pack, err := NewKeyPack(packId, PACK_PREFIX_IN); err != nil {
+		return nil, err
+	} else {
+		keyIOPack.InKeys = pack
+	}
+
+	if pack, err := NewKeyPack(packId, PACK_PREFIX_OUT); err != nil {
+		return nil, err
+	} else {
+		keyIOPack.OutKeys = pack
+	}
+
+	return keyIOPack, nil
+}
+
+func (obj *KeyIOPack) Close() {
+	safeClose(obj.InKeys)
+	safeClose(obj.OutKeys)
+}
+
+var Packs = map[uuid.UUID]*KeyIOPack{}
+
+func ManageKeyPack(packId uuid.UUID) (err error) {
+	if _, ok := Packs[packId]; ok {
+		return nil
+	}
+
+	if pack, err := NewKeyIOPack(packId); err != nil {
+		return err
+	} else {
+		Packs[packId] = pack
+	}
+
 	return err
 }
 
-func UnmanageKey(keyId KeyId) {
-	if buf, ok := Keys[keyId]; ok {
-		buf.Close()
-		delete(Keys, keyId)
+func UnmanageKeyPack(packId uuid.UUID) {
+	if pack, ok := Packs[packId]; ok {
+		safeClose(pack)
+		delete(Packs, packId)
 	}
 }
 
-func DecodeKeyID(keyPos int64, encId []byte) (id KeyId, ok bool) {
+func TryDecodePackId(idKeyPos int64, encId []byte) (id uuid.UUID, ok bool) {
 	idLen := int64(len(encId))
 
-	for id, buf := range Keys {
+	for id, pack := range Packs {
 		tmpEncId := make([]byte, idLen)
 		copy(tmpEncId, encId)
 
-		key, err := buf.GetKeySlice(keyPos, idLen)
+		key, err := pack.InKeys.IdKey.GetKeySlice(idKeyPos, idLen)
 
-		if err == nil && quartzSymmetric.Decode(tmpEncId, key) == nil && KeyId(tmpEncId) == id {
+		if err == nil && quartzSymmetric.Decode(tmpEncId, key) == nil && sliceutils.IsEqual(tmpEncId, id[:]) {
 			return id, true
 		}
 	}
