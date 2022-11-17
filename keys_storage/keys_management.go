@@ -100,11 +100,11 @@ func UnmanageKeyPack(packId uuid.UUID) {
 func TryDecodePackId(idKeyPos int64, encId []byte) (id uuid.UUID, ok bool) {
 	idLen := int64(len(encId))
 
-	for id, pack := range Packs {
+	for id := range Packs {
 		tmpEncId := make([]byte, idLen)
 		copy(tmpEncId, encId)
 
-		key, err := pack.InKeys.idKey.GetKeySlice(idKeyPos, idLen)
+		key, err := Packs[id].InKeys.idKey.GetKeySlice(idKeyPos, idLen)
 
 		if err == nil && quartzSymmetric.Decode(tmpEncId, key) == nil && sliceutils.IsEqual(tmpEncId, id[:]) {
 			return id, true

@@ -6,8 +6,35 @@ import (
 	"github.com/google/uuid"
 )
 
-func CreateChat() (chatId uuid.UUID, err error) {
-	chatId = uuid.New()
+type Chat struct {
+	Id   uuid.UUID
+	Name string
+}
 
-	return chatId, keysstorage.ManageKeyPack(chatId)
+var Chats = map[uuid.UUID]*Chat{}
+
+func CreateChat(name string) (chat *Chat, err error) {
+	chat = &Chat{
+		Id:   uuid.New(),
+		Name: name,
+	}
+
+	err = keysstorage.ManageKeyPack(chat.Id)
+	if err == nil {
+		Chats[chat.Id] = chat
+	}
+
+	return chat, err
+}
+
+func UpdateChatsFromStorage() (err error) {
+	return err
+}
+
+func ConnectChatFromStorage(chatId uuid.UUID, name string) (err error) {
+	if _, ok := Chats[chatId]; ok {
+		return nil
+	}
+
+	return err
 }

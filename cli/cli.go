@@ -12,8 +12,8 @@ import (
 func chat(args ...string) bool {
 	const help = (`
 /chat list - prints list of chats
-/chat create - creates a chat, returns its ID
-/chat connect <id> - add a new chat to the cache, adopts its keys	
+/chat create <name> - creates a chat, returns its ID
+/chat connect <id> <name> - add a new chat to the cache and name it
 `)
 
 	if len(args) == 0 {
@@ -23,11 +23,16 @@ func chat(args ...string) bool {
 
 	switch args[0] {
 	case "create":
-		chatId, err := clientsdk.CreateChat()
+		chat, err := clientsdk.CreateChat(args[1])
 		if err != nil {
 			fmt.Printf("Error creating a new chat: %s\n", err)
 		} else {
-			fmt.Printf("The new chat's id is: %s\n", chatId.String())
+			fmt.Printf("The new chat's id is: %s\n", chat.Id.String())
+		}
+	case "list":
+		fmt.Println("Your chats:")
+		for id := range clientsdk.Chats {
+			fmt.Printf(" - %s\n", clientsdk.Chats[id].Name)
 		}
 	}
 
