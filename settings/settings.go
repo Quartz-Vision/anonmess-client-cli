@@ -18,7 +18,7 @@ var Config = struct {
 	KeysBufferSizeB            int64
 	KeysStartSizeMB            int64 `env:"KEYS_START_SIZE_MB" envDefault:"1"`
 	KeysStartSizeB             int64
-	ServerHost                 string `env:"SERVER_HOST" envDefault:"localhost"`
+	ServerHost                 string `env:"SERVER_HOST" envDefault:"0.0.0.0"`
 	ServerPort                 int64  `env:"SERVER_PORT" envDefault:"8081"`
 	ServerAddr                 string
 	KeysStorageDefaultDirName  string

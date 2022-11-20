@@ -1,6 +1,7 @@
 package app
 
 import (
+	anoncastsdk "quartzvision/anonmess-client-cli/anoncast_sdk"
 	cachestorage "quartzvision/anonmess-client-cli/cache_storage"
 	"quartzvision/anonmess-client-cli/cli"
 	keysstorage "quartzvision/anonmess-client-cli/keys_storage"
@@ -13,6 +14,7 @@ func Init() error {
 		settings.Init,
 		cachestorage.Init,
 		keysstorage.Init,
+		anoncastsdk.Init,
 		cli.Init,
 	})
 }

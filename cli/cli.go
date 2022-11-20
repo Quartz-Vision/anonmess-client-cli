@@ -4,16 +4,23 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	anoncastsdk "quartzvision/anonmess-client-cli/anoncast_sdk"
 	clientsdk "quartzvision/anonmess-client-cli/client_sdk"
+	"quartzvision/anonmess-client-cli/settings"
+	"time"
 
 	"github.com/google/shlex"
+	"github.com/google/uuid"
 )
+
+var currentChat *clientsdk.Chat = nil
 
 func chat(args ...string) bool {
 	const help = (`
 /chat list - prints list of chats
 /chat create <name> - creates a chat, returns its ID
 /chat connect <id> <name> - add a new chat to the cache and name it
+/chat switch <id> - enter the chat by id
 `)
 
 	if len(args) == 0 {
@@ -32,8 +39,33 @@ func chat(args ...string) bool {
 	case "list":
 		fmt.Println("Your chats:")
 		for id := range clientsdk.Chats {
-			fmt.Printf(" - %s\n", clientsdk.Chats[id].Name)
+			fmt.Printf(" - %s   [%s]\n", clientsdk.Chats[id].Name, id.String())
 		}
+	case "switch":
+		if id, err := uuid.Parse(args[1]); err != nil {
+			fmt.Printf("Error parsing uuid: %s\n", err)
+		} else {
+			if chat, ok := clientsdk.Chats[id]; ok {
+				currentChat = chat
+			} else {
+				currentChat = nil
+				fmt.Printf("Chat %s doesn't exist\n", args[1])
+			}
+		}
+	case "test":
+		start := time.Now()
+		c := 1000000
+		for i := 0; i < c; i++ {
+			anoncastsdk.SendEvent(&anoncastsdk.Event{
+				Type: anoncastsdk.EVENT_MESSAGE,
+				Data: &anoncastsdk.Message{
+					Text: "test",
+				},
+			})
+		}
+		end := time.Now()
+
+		fmt.Printf("\nT/append: %v (%s), c: %v\n", (end.Sub(start)).Milliseconds(), "ms", c)
 	}
 
 	return false
@@ -52,6 +84,14 @@ func Init() (err error) {
 	scanner := bufio.NewScanner(os.Stdin)
 	input := ""
 
+	fmt.Printf("\n%s\nApp data dir: %s\n=========================\n\n", settings.Config.AppName, settings.Config.AppDataDirPath)
+
+	anoncastsdk.EventHandlers[anoncastsdk.EVENT_MESSAGE] = func(e *anoncastsdk.Event) {
+		fmt.Printf("\n>>> %v\n", e.Data.(*anoncastsdk.Message).Text)
+	}
+
+	go anoncastsdk.Start()
+
 	for {
 		fmt.Print("> ")
 		scanner.Scan()
@@ -69,6 +109,13 @@ func Init() (err error) {
 			} else if fn(args[1:]...) {
 				break
 			}
+		} else if len(input) > 0 {
+			anoncastsdk.SendEvent(&anoncastsdk.Event{
+				Type: anoncastsdk.EVENT_MESSAGE,
+				Data: &anoncastsdk.Message{
+					Text: input,
+				},
+			})
 		}
 	}
 
