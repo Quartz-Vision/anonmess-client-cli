@@ -1,13 +1,13 @@
 package symmetric
 
-import sliceutils "quartzvision/anonmess-client-cli/slice_utils"
+import utils "quartzvision/anonmess-client-cli/utils"
 
 func Encode(data []byte, key []byte) (err error) {
 	if len(data) > len(key) {
 		return ErrWrongKeyLength
 	}
 
-	sliceutils.Xor(data, key)
+	utils.XorSlices(data, key)
 	return nil
 }
 
@@ -16,6 +16,6 @@ func Decode(data []byte, key []byte) (err error) {
 		return ErrWrongKeyLength
 	}
 
-	sliceutils.Xor(data, key)
+	utils.XorSlices(data, key)
 	return nil
 }

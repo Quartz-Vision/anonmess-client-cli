@@ -1,15 +1,23 @@
 package anoncastsdk
 
+import (
+	"quartzvision/anonmess-client-cli/events"
+	"quartzvision/anonmess-client-cli/utils"
+)
+
+var EVENT_MESSAGE = events.CreateEventType("message")
+
 type Message struct {
 	Text string
 }
 
-func initMessageEvent(eventType EventType) {
-	EventSerializers[eventType] = EventSerializer{
-		Encode: func(e *Event) (dst []byte, err error) {
+func initMessageEvent() {
+	events.SetEventCoders(
+		EVENT_MESSAGE,
+		func(e *events.Event) (dst []byte, err error) {
 			data := e.Data.(*Message)
 
-			encodedTextLen := Int64ToBytes(int64(len(data.Text)))
+			encodedTextLen := utils.Int64ToBytes(int64(len(data.Text)))
 			encodedData := make([]byte, len(encodedTextLen)+len(data.Text))
 
 			copy(encodedData, encodedTextLen)
@@ -17,14 +25,13 @@ func initMessageEvent(eventType EventType) {
 
 			return encodedData, nil
 		},
-
-		Decode: func(e *Event, src []byte) (err error) {
-			textLen, sizeRead := BytesToInt64(src)
+		func(e *events.Event, src []byte) (err error) {
+			textLen, sizeRead := utils.BytesToInt64(src)
 
 			e.Data = &Message{
 				Text: string(src[sizeRead : int64(sizeRead)+textLen]),
 			}
 			return nil
 		},
-	}
+	)
 }

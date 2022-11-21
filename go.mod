@@ -11,6 +11,7 @@ require (
 )
 
 require (
+	github.com/sigurn/crc8 v0.0.0-20220107193325-2243fe600f9f
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad // indirect
 	golang.org/x/sys v0.0.0-20210119212857-b64e53b001e4 // indirect
 )

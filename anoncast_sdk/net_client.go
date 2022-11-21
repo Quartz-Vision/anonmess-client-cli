@@ -1,10 +1,11 @@
 package anoncastsdk
 
 import (
-	"fmt"
 	"io"
 	"net"
+	"quartzvision/anonmess-client-cli/events"
 	"quartzvision/anonmess-client-cli/settings"
+	"quartzvision/anonmess-client-cli/utils"
 	"time"
 )
 
@@ -23,38 +24,37 @@ func Start() (err error) {
 
 	defer conn.Close()
 
-	sizeRawBuf := make([]byte, INT64_SIZE)
+	sizeRawBuf := make([]byte, utils.INT_MAX_SIZE)
 
 	go (func() {
 		for {
-			for EventsToSend.IsEmpty() {
+			for eventsToSend.IsEmpty() {
 				time.Sleep(time.Millisecond)
 			}
 
-			a := 0
-			start := time.Now()
-			for val, ok := EventsToSend.Pop(); ok; val, ok = EventsToSend.Pop() {
-				a++
+			for val, ok := eventsToSend.Pop(); ok; val, ok = eventsToSend.Pop() {
+				event := val.(eventPack)
 				pack := Package{
-					Event: val.(*Event),
+					ChannelId: event.channelId,
+					Event:     event.event,
 				}
 
 				buf, _ := pack.MarshalBinary()
+
+				p := Package{}
+				p.UnmarshalBinary(buf)
+
 				conn.Write(buf)
 			}
-			end := time.Now()
-
-			fmt.Printf("\nT/send: %v (%s), c: %v\n", (end.Sub(start)).Milliseconds(), "ms", a)
 		}
 	})()
 
-	a := 0
 	for {
 		if _, err := io.ReadFull(conn, sizeRawBuf); err != nil {
 			return err
 		}
 
-		packageSize, _ := BytesToInt64(sizeRawBuf)
+		packageSize, _ := utils.BytesToInt64(sizeRawBuf)
 		packageBuf := make([]byte, packageSize+int64(len(sizeRawBuf)))
 
 		copy(packageBuf, sizeRawBuf)
@@ -66,10 +66,6 @@ func Start() (err error) {
 		pack := Package{}
 		pack.UnmarshalBinary(packageBuf)
 
-		// EmitEvent(pack.Event)
-		a++
-		if a >= 999999 {
-			EmitEvent(pack.Event)
-		}
+		events.EmitEvent(pack.ChannelId, pack.Event)
 	}
 }

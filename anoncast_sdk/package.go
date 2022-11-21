@@ -1,34 +1,47 @@
 package anoncastsdk
 
-import "github.com/google/uuid"
+import (
+	"quartzvision/anonmess-client-cli/events"
+	"quartzvision/anonmess-client-cli/utils"
+
+	"github.com/google/uuid"
+)
+
+const UUID_SIZE = 16
 
 type Package struct {
-	ChatId uuid.UUID
-	Event  *Event
+	ChannelId uuid.UUID
+	Event     *events.Event
 }
 
 func (p *Package) MarshalBinary() (data []byte, err error) {
-	encodedEvent, err := p.Event.MarshalBinary()
+	eventEnc, err := p.Event.MarshalBinary()
 	if err != nil {
 		return data, err
 	}
-	encodedEventLen := Int64ToBytes(int64(len(encodedEvent)))
-	encodedPackageLen := Int64ToBytes(int64(len(encodedEventLen) + len(encodedEvent)))
+	eventSize := len(eventEnc)
+	eventSizeEnc := utils.Int64ToBytes(int64(eventSize))
 
-	encodedData := make([]byte, len(encodedPackageLen)+len(encodedEventLen)+len(encodedEvent))
+	packageSize := UUID_SIZE + len(eventSizeEnc) + eventSize
+	packageSizeEnc := utils.Int64ToBytes(int64(packageSize))
 
-	copy(encodedData, encodedPackageLen)
-	copy(encodedData[len(encodedPackageLen):], encodedEventLen)
-	copy(encodedData[len(encodedPackageLen)+len(encodedEventLen):], encodedEvent)
+	encodedData := make([]byte, len(packageSizeEnc)+packageSize)
+
+	utils.JoinSlices(encodedData, packageSizeEnc, p.ChannelId[:], eventSizeEnc, eventEnc)
 
 	return encodedData, nil
 }
 
 func (p *Package) UnmarshalBinary(data []byte) (err error) {
-	_, packageLenSize := BytesToInt64(data)
-	_, eventLenSize := BytesToInt64(data[packageLenSize:])
-	p.Event = &Event{}
-	if err := p.Event.UnmarshalBinary(data[packageLenSize+eventLenSize:]); err != nil {
+	_, packageSizeLen := utils.BytesToInt64(data)
+
+	copy(p.ChannelId[:], data[packageSizeLen:packageSizeLen+UUID_SIZE])
+
+	eventSize, eventSizeLen := utils.BytesToInt64(data[packageSizeLen+UUID_SIZE:])
+
+	p.Event = &events.Event{}
+	skip := packageSizeLen + UUID_SIZE + eventSizeLen
+	if err := p.Event.UnmarshalBinary(data[skip : skip+int(eventSize)]); err != nil {
 		return err
 	}
 

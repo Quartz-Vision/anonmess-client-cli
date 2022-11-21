@@ -3,7 +3,6 @@ package keysstorage
 import (
 	quartzSymmetric "quartzvision/anonmess-client-cli/crypto/symmetric"
 	"quartzvision/anonmess-client-cli/settings"
-	sliceutils "quartzvision/anonmess-client-cli/slice_utils"
 	"quartzvision/anonmess-client-cli/utils"
 
 	"github.com/google/uuid"
@@ -106,7 +105,7 @@ func TryDecodePackId(idKeyPos int64, encId []byte) (id uuid.UUID, ok bool) {
 
 		key, err := Packs[id].InKeys.idKey.GetKeySlice(idKeyPos, idLen)
 
-		if err == nil && quartzSymmetric.Decode(tmpEncId, key) == nil && sliceutils.IsEqual(tmpEncId, id[:]) {
+		if err == nil && quartzSymmetric.Decode(tmpEncId, key) == nil && utils.AreSlicesEqual(tmpEncId, id[:]) {
 			return id, true
 		}
 	}

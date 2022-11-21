@@ -6,8 +6,8 @@ import (
 	"os"
 	anoncastsdk "quartzvision/anonmess-client-cli/anoncast_sdk"
 	clientsdk "quartzvision/anonmess-client-cli/client_sdk"
+	"quartzvision/anonmess-client-cli/events"
 	"quartzvision/anonmess-client-cli/settings"
-	"time"
 
 	"github.com/google/shlex"
 	"github.com/google/uuid"
@@ -52,20 +52,26 @@ func chat(args ...string) bool {
 				fmt.Printf("Chat %s doesn't exist\n", args[1])
 			}
 		}
-	case "test":
-		start := time.Now()
-		c := 1000000
-		for i := 0; i < c; i++ {
-			anoncastsdk.SendEvent(&anoncastsdk.Event{
-				Type: anoncastsdk.EVENT_MESSAGE,
-				Data: &anoncastsdk.Message{
-					Text: "test",
-				},
-			})
-		}
-		end := time.Now()
+	case "test-add":
+		id, _ := uuid.Parse(args[1])
+		clientsdk.ManageChat(&clientsdk.Chat{
+			Id:   id,
+			Name: args[2],
+		})
+		// case "test":
+		// 	start := time.Now()
+		// 	c := 1000000
+		// 	for i := 0; i < c; i++ {
+		// 		anoncastsdk.SendEvent(&events.Event{
+		// 			Type: anoncastsdk.EVENT_MESSAGE,
+		// 			Data: &anoncastsdk.Message{
+		// 				Text: "test",
+		// 			},
+		// 		})
+		// 	}
+		// 	end := time.Now()
 
-		fmt.Printf("\nT/append: %v (%s), c: %v\n", (end.Sub(start)).Milliseconds(), "ms", c)
+		// 	fmt.Printf("\nT/append: %v (%s), c: %v\n", (end.Sub(start)).Milliseconds(), "ms", c)
 	}
 
 	return false
@@ -86,9 +92,9 @@ func Init() (err error) {
 
 	fmt.Printf("\n%s\nApp data dir: %s\n=========================\n\n", settings.Config.AppName, settings.Config.AppDataDirPath)
 
-	anoncastsdk.EventHandlers[anoncastsdk.EVENT_MESSAGE] = func(e *anoncastsdk.Event) {
-		fmt.Printf("\n>>> %v\n", e.Data.(*anoncastsdk.Message).Text)
-	}
+	clientsdk.AddClientListener(clientsdk.EVENT_CHAT_MESSAGE, clientsdk.WrapMessageHandler(func(msg *clientsdk.Message) {
+		fmt.Printf("\n[%s] >>> %v\n> ", msg.Chat.Name, msg.Text)
+	}))
 
 	go anoncastsdk.Start()
 
@@ -109,8 +115,8 @@ func Init() (err error) {
 			} else if fn(args[1:]...) {
 				break
 			}
-		} else if len(input) > 0 {
-			anoncastsdk.SendEvent(&anoncastsdk.Event{
+		} else if len(input) > 0 && currentChat != nil {
+			anoncastsdk.SendEvent(currentChat.Id, &events.Event{
 				Type: anoncastsdk.EVENT_MESSAGE,
 				Data: &anoncastsdk.Message{
 					Text: input,

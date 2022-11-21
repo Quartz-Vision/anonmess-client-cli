@@ -1,8 +1,8 @@
-package sliceutils
+package utils
 
 import "unsafe"
 
-func Xor(a []byte, b []byte) {
+func XorSlices(a []byte, b []byte) {
 	data_len := uint(len(a))
 	chunks_count := data_len >> 3
 
@@ -20,7 +20,7 @@ func Xor(a []byte, b []byte) {
 	}
 }
 
-func IsEqual(a []byte, b []byte) (ok bool) {
+func AreSlicesEqual(a []byte, b []byte) (ok bool) {
 	data_len := uint(len(a))
 	chunks_count := data_len >> 3
 
@@ -42,4 +42,15 @@ func IsEqual(a []byte, b []byte) (ok bool) {
 	}
 
 	return true
+}
+
+// Joins all slices and puts them into dst.
+// Returns position right after the end of the last slice put
+func JoinSlices(dst []byte, slices ...[]byte) (pos int) {
+	pos = 0
+	for i := range slices {
+		pos += copy(dst[pos:], slices[i])
+	}
+
+	return pos
 }
