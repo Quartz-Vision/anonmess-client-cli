@@ -4,10 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	anoncastsdk "quartzvision/anonmess-client-cli/anoncast_sdk"
 	clientsdk "quartzvision/anonmess-client-cli/client_sdk"
-	"quartzvision/anonmess-client-cli/events"
 	"quartzvision/anonmess-client-cli/settings"
+	"time"
 
 	"github.com/google/shlex"
 	"github.com/google/uuid"
@@ -15,7 +14,7 @@ import (
 
 var currentChat *clientsdk.Chat = nil
 
-func chat(args ...string) bool {
+func chat(client *clientsdk.Client, args ...string) bool {
 	const help = (`
 /chat list - prints list of chats
 /chat create <name> - creates a chat, returns its ID
@@ -30,7 +29,7 @@ func chat(args ...string) bool {
 
 	switch args[0] {
 	case "create":
-		chat, err := clientsdk.CreateChat(args[1])
+		chat, err := client.CreateChat(args[1])
 		if err != nil {
 			fmt.Printf("Error creating a new chat: %s\n", err)
 		} else {
@@ -38,14 +37,14 @@ func chat(args ...string) bool {
 		}
 	case "list":
 		fmt.Println("Your chats:")
-		for id := range clientsdk.Chats {
-			fmt.Printf(" - %s   [%s]\n", clientsdk.Chats[id].Name, id.String())
+		for id := range client.Chats {
+			fmt.Printf(" - %s   [%s]\n", client.Chats[id].Name, id.String())
 		}
 	case "switch":
 		if id, err := uuid.Parse(args[1]); err != nil {
 			fmt.Printf("Error parsing uuid: %s\n", err)
 		} else {
-			if chat, ok := clientsdk.Chats[id]; ok {
+			if chat, ok := client.Chats[id]; ok {
 				currentChat = chat
 			} else {
 				currentChat = nil
@@ -54,35 +53,33 @@ func chat(args ...string) bool {
 		}
 	case "test-add":
 		id, _ := uuid.Parse(args[1])
-		clientsdk.ManageChat(&clientsdk.Chat{
+		client.ManageChat(&clientsdk.Chat{
 			Id:   id,
 			Name: args[2],
 		})
-		// case "test":
-		// 	start := time.Now()
-		// 	c := 1000000
-		// 	for i := 0; i < c; i++ {
-		// 		anoncastsdk.SendEvent(&events.Event{
-		// 			Type: anoncastsdk.EVENT_MESSAGE,
-		// 			Data: &anoncastsdk.Message{
-		// 				Text: "test",
-		// 			},
-		// 		})
-		// 	}
-		// 	end := time.Now()
 
-		// 	fmt.Printf("\nT/append: %v (%s), c: %v\n", (end.Sub(start)).Milliseconds(), "ms", c)
+	case "test":
+		start := time.Now()
+		c := 1000000
+		for i := 0; i < c; i++ {
+			currentChat.SendMessage("test")
+		}
+		end := time.Now()
+
+		fmt.Printf("\nT/append: %v (%s), c: %v\n", (end.Sub(start)).Milliseconds(), "ms", c)
 	}
 
 	return false
 }
 
-func exit(args ...string) bool {
+func exit(c *clientsdk.Client, args ...string) bool {
 	return true
 }
 
 func Init() (err error) {
-	var commands = map[string]func(...string) bool{
+	client := clientsdk.New()
+
+	var commands = map[string]func(*clientsdk.Client, ...string) bool{
 		"chat": chat,
 		"exit": exit,
 	}
@@ -92,11 +89,11 @@ func Init() (err error) {
 
 	fmt.Printf("\n%s\nApp data dir: %s\n=========================\n\n", settings.Config.AppName, settings.Config.AppDataDirPath)
 
-	clientsdk.AddClientListener(clientsdk.EVENT_CHAT_MESSAGE, clientsdk.WrapMessageHandler(func(msg *clientsdk.Message) {
+	client.AddClientListener(clientsdk.EVENT_CHAT_MESSAGE, client.WrapMessageHandler(func(msg *clientsdk.ChatMessage) {
 		fmt.Printf("\n[%s] >>> %v\n> ", msg.Chat.Name, msg.Text)
 	}))
 
-	go anoncastsdk.Start()
+	go client.StartConnection()
 
 	for {
 		fmt.Print("> ")
@@ -112,16 +109,11 @@ func Init() (err error) {
 
 			if fn, ok := commands[args[0]]; !ok {
 				fmt.Printf("Command not found: %s", args[0])
-			} else if fn(args[1:]...) {
+			} else if fn(client, args[1:]...) {
 				break
 			}
 		} else if len(input) > 0 && currentChat != nil {
-			anoncastsdk.SendEvent(currentChat.Id, &events.Event{
-				Type: anoncastsdk.EVENT_MESSAGE,
-				Data: &anoncastsdk.Message{
-					Text: input,
-				},
-			})
+			currentChat.SendMessage(input)
 		}
 	}
 

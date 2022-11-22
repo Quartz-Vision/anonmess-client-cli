@@ -2,8 +2,6 @@ package utils
 
 import "encoding/binary"
 
-const INT_MAX_SIZE = 8
-
 func BytesToInt64(src []byte) (val int64, sizeRead int) {
 	return int64(binary.BigEndian.Uint64(src[:INT_MAX_SIZE])), INT_MAX_SIZE
 }

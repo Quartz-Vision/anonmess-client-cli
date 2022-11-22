@@ -4,18 +4,40 @@ import (
 	"io"
 	"net"
 	"quartzvision/anonmess-client-cli/events"
+	"quartzvision/anonmess-client-cli/lists/squeue"
 	"quartzvision/anonmess-client-cli/settings"
 	"quartzvision/anonmess-client-cli/utils"
 	"time"
+
+	"github.com/google/uuid"
 )
 
-func Init() (err error) {
-	initEvents()
+type Client struct {
+	events.EventManager
 
-	return nil
+	eventsToSend *squeue.SQueue
 }
 
-func Start() (err error) {
+func New() *Client {
+	return &Client{
+		EventManager: *events.New(),
+
+		eventsToSend: squeue.New(),
+	}
+}
+
+func (c *Client) SendEvent(channelId uuid.UUID, etype events.EventType, data any) {
+	c.eventsToSend.Push(&dataPackage{
+		channelId: channelId,
+		event: c.Manage(&events.Event{
+			Type: etype,
+			Data: data,
+		}),
+		client: c,
+	})
+}
+
+func (c *Client) Start() (err error) {
 	conn, err := net.Dial("tcp", settings.Config.ServerAddr)
 
 	if err != nil {
@@ -28,22 +50,13 @@ func Start() (err error) {
 
 	go (func() {
 		for {
-			for eventsToSend.IsEmpty() {
+			for c.eventsToSend.IsEmpty() {
 				time.Sleep(time.Millisecond)
 			}
 
-			for val, ok := eventsToSend.Pop(); ok; val, ok = eventsToSend.Pop() {
-				event := val.(eventPack)
-				pack := Package{
-					ChannelId: event.channelId,
-					Event:     event.event,
-				}
-
+			for val, ok := c.eventsToSend.Pop(); ok; val, ok = c.eventsToSend.Pop() {
+				pack := val.(*dataPackage)
 				buf, _ := pack.MarshalBinary()
-
-				p := Package{}
-				p.UnmarshalBinary(buf)
-
 				conn.Write(buf)
 			}
 		}
@@ -63,9 +76,9 @@ func Start() (err error) {
 			return err
 		}
 
-		pack := Package{}
+		pack := dataPackage{client: c}
 		pack.UnmarshalBinary(packageBuf)
 
-		events.EmitEvent(pack.ChannelId, pack.Event)
+		c.EmitEvent(pack.channelId, pack.event.Type, pack.event.Data)
 	}
 }
