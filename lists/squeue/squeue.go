@@ -42,6 +42,24 @@ func (q *SQueue) Push(val any) {
 	q.mutex.Unlock()
 }
 
+func (q *SQueue) PushBack(val any) {
+	q.mutex.Lock()
+	if q.anchorNode == q.anchorNode.next {
+		node := &Node{
+			Value: val,
+		}
+		node.next = node
+		q.currentNode.next.next = node
+		q.currentNode = node
+	} else {
+		q.anchorNode.next = &Node{
+			Value: val,
+			next:  q.anchorNode.next,
+		}
+	}
+	q.mutex.Lock()
+}
+
 func (q *SQueue) Pop() (val any, ok bool) {
 	q.mutex.Lock()
 

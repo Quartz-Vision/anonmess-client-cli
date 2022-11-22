@@ -17,19 +17,19 @@ func New() *Stack {
 	}
 }
 
-func (obj *Stack) IsEmpty() bool {
-	return obj.node == obj.node.prev
+func (s *Stack) IsEmpty() bool {
+	return s.node == s.node.prev
 }
 
-func (obj *Stack) Push(val any) {
-	obj.node = &Node{
-		prev:  obj.node,
+func (s *Stack) Push(val any) {
+	s.node = &Node{
+		prev:  s.node,
 		Value: val,
 	}
 }
 
-func (obj *Stack) Pop() (val any, ok bool) {
-	node := obj.node
-	obj.node = node.prev
-	return node.Value, node != obj.node
+func (s *Stack) Pop() (val any, ok bool) {
+	node := s.node
+	s.node = node.prev
+	return node.Value, node != s.node
 }

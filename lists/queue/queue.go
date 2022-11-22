@@ -32,6 +32,22 @@ func (q *Queue) Push(val any) {
 	q.currentNode = node
 }
 
+func (q *Queue) PushBack(val any) {
+	if q.anchorNode == q.anchorNode.next {
+		node := &Node{
+			Value: val,
+		}
+		node.next = node
+		q.currentNode.next.next = node
+		q.currentNode = node
+	} else {
+		q.anchorNode.next = &Node{
+			Value: val,
+			next:  q.anchorNode.next,
+		}
+	}
+}
+
 func (q *Queue) Pop() (val any, ok bool) {
 	node := q.anchorNode.next
 	ok = q.anchorNode != node.next

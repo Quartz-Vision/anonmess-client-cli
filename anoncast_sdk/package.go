@@ -39,11 +39,6 @@ func (p *dataPackage) UnmarshalBinary(data []byte) (err error) {
 
 	eventSize, eventSizeLen := utils.BytesToInt64(data[packageSizeLen+utils.UUID_SIZE:])
 
-	p.event = p.client.Manage(&events.Event{})
 	skip := packageSizeLen + utils.UUID_SIZE + eventSizeLen
-	if err := p.event.UnmarshalBinary(data[skip : skip+int(eventSize)]); err != nil {
-		return err
-	}
-
-	return nil
+	return p.event.UnmarshalBinary(data[skip : skip+int(eventSize)])
 }

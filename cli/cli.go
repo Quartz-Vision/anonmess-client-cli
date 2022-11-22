@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	clientsdk "quartzvision/anonmess-client-cli/client_sdk"
+	"quartzvision/anonmess-client-cli/lists/queue"
 	"quartzvision/anonmess-client-cli/settings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 )
 
 var currentChat *clientsdk.Chat = nil
+var t = queue.New()
 
 func chat(client *clientsdk.Client, args ...string) bool {
 	const help = (`
@@ -67,6 +69,16 @@ func chat(client *clientsdk.Client, args ...string) bool {
 		end := time.Now()
 
 		fmt.Printf("\nT/append: %v (%s), c: %v\n", (end.Sub(start)).Milliseconds(), "ms", c)
+	case "push":
+		t.Push(args[1])
+	case "pop":
+		if tt, ok := t.Pop(); ok {
+			fmt.Println(tt.(string))
+		} else {
+			fmt.Println("< >")
+		}
+	case "pb":
+		t.PushBack(args[1])
 	}
 
 	return false
