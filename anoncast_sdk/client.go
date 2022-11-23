@@ -53,7 +53,7 @@ func New() *Client {
 	}
 }
 
-func (c *Client) AddClientListener(etype events.EventType, handler events.EventHandlerFn) {
+func (c *Client) ListenClient(etype events.EventType, handler events.EventHandlerFn) {
 	c.Listen(c.ClientEventsChannel, etype, handler)
 }
 

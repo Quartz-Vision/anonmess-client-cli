@@ -10,6 +10,8 @@ require (
 	github.com/kudelskisecurity/crystals-go v0.0.0-20210705112123-14b89bfbcdc8
 )
 
+require github.com/orcaman/concurrent-map/v2 v2.0.1 // indirect
+
 require (
 	github.com/sigurn/crc8 v0.0.0-20220107193325-2243fe600f9f
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad // indirect

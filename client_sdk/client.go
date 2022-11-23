@@ -39,7 +39,7 @@ func New() *Client {
 		client.ClientEventsChannel,
 		EVENT_CONNECTED,
 	)
-	// client.anoncastClient.AddClientListener(anoncastsdk.EVENT_ERROR, client.anoncastErrorsHandler)
+	// client.anoncastClient.ListenClient(anoncastsdk.EVENT_ERROR, client.anoncastErrorsHandler)
 
 	return client
 }
@@ -49,6 +49,6 @@ func (c *Client) StartConnection() (err error) {
 	return c.anoncastClient.Start()
 }
 
-func (c *Client) AddClientListener(etype events.EventType, handler events.EventHandlerFn) {
+func (c *Client) ListenClient(etype events.EventType, handler events.EventHandlerFn) {
 	c.Listen(c.ClientEventsChannel, etype, handler)
 }

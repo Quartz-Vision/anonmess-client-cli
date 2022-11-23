@@ -103,10 +103,10 @@ func Init() (err error) {
 
 	fmt.Printf("\n%s\nApp data dir: %s\n=========================\n\n", settings.Config.AppName, settings.Config.AppDataDirPath)
 
-	client.AddClientListener(clientsdk.EVENT_CHAT_MESSAGE, client.WrapMessageHandler(func(msg *clientsdk.ChatMessage) {
+	client.ListenClient(clientsdk.EVENT_CHAT_MESSAGE, client.WrapMessageHandler(func(msg *clientsdk.ChatMessage) {
 		fmt.Printf("\n[%s] >>> %v\n> ", msg.Chat.Name, msg.Text)
 	}))
-	client.AddClientListener(clientsdk.EVENT_ERROR, client.WrapErrorHandler(func(err *anoncastsdk.ClientErrorMessage) {
+	client.ListenClient(clientsdk.EVENT_ERROR, client.WrapErrorHandler(func(err *anoncastsdk.ClientErrorMessage) {
 		fmt.Printf("\n{|ERROR|} >>> %v\n> ", err.Details)
 		if err.Code == anoncastsdk.ERROR_FATAL {
 			fmt.Println("Trying to connect in 5s")
@@ -114,7 +114,7 @@ func Init() (err error) {
 			go client.StartConnection()
 		}
 	}))
-	client.AddClientListener(clientsdk.EVENT_CONNECTED, func(e *events.Event) {
+	client.ListenClient(clientsdk.EVENT_CONNECTED, func(e *events.Event) {
 		fmt.Printf("\n{|SERVER CONNECTED|} \n> ")
 	})
 
