@@ -25,14 +25,30 @@ func New() *Client {
 	}
 
 	client.initRawMessageEvent()
+	client.anoncastClient.Pipe(
+		client.anoncastClient.ClientEventsChannel,
+		anoncastsdk.EVENT_ERROR,
+		client,
+		client.ClientEventsChannel,
+		EVENT_ERROR,
+	)
+	client.anoncastClient.Pipe(
+		client.anoncastClient.ClientEventsChannel,
+		anoncastsdk.EVENT_CONNECTED,
+		client,
+		client.ClientEventsChannel,
+		EVENT_CONNECTED,
+	)
+	// client.anoncastClient.AddClientListener(anoncastsdk.EVENT_ERROR, client.anoncastErrorsHandler)
 
 	return client
 }
 
+// For starting or restarting the connection
 func (c *Client) StartConnection() (err error) {
 	return c.anoncastClient.Start()
 }
 
 func (c *Client) AddClientListener(etype events.EventType, handler events.EventHandlerFn) {
-	c.AddListener(c.ClientEventsChannel, etype, handler)
+	c.Listen(c.ClientEventsChannel, etype, handler)
 }

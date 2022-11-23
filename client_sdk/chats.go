@@ -17,7 +17,7 @@ func (c *Client) ManageChat(chat *Chat) {
 	c.Chats[chat.Id] = chat
 	chat.client = c
 
-	c.anoncastClient.AddListener(chat.Id, EVENT_RAW_MESSAGE, c.rawMessagesHandler)
+	c.anoncastClient.Listen(chat.Id, EVENT_RAW_MESSAGE, c.rawMessagesHandler)
 }
 
 func (c *Client) CreateChat(name string) (chat *Chat, err error) {

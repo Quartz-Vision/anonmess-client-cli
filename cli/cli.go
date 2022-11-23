@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	anoncastsdk "quartzvision/anonmess-client-cli/anoncast_sdk"
 	clientsdk "quartzvision/anonmess-client-cli/client_sdk"
+	"quartzvision/anonmess-client-cli/events"
 	"quartzvision/anonmess-client-cli/lists/queue"
 	"quartzvision/anonmess-client-cli/settings"
 	"time"
@@ -104,6 +106,17 @@ func Init() (err error) {
 	client.AddClientListener(clientsdk.EVENT_CHAT_MESSAGE, client.WrapMessageHandler(func(msg *clientsdk.ChatMessage) {
 		fmt.Printf("\n[%s] >>> %v\n> ", msg.Chat.Name, msg.Text)
 	}))
+	client.AddClientListener(clientsdk.EVENT_ERROR, client.WrapErrorHandler(func(err *anoncastsdk.ClientErrorMessage) {
+		fmt.Printf("\n{|ERROR|} >>> %v\n> ", err.Details)
+		if err.Code == anoncastsdk.ERROR_FATAL {
+			fmt.Println("Trying to connect in 5s")
+			time.Sleep(5 * time.Second)
+			go client.StartConnection()
+		}
+	}))
+	client.AddClientListener(clientsdk.EVENT_CONNECTED, func(e *events.Event) {
+		fmt.Printf("\n{|SERVER CONNECTED|} \n> ")
+	})
 
 	go client.StartConnection()
 

@@ -15,10 +15,10 @@ import (
 )
 
 var (
-	EVENT_WARNING     = events.CreateEventType("warning")
-	EVENT_FATAL_ERROR = events.CreateEventType("fatal_error")
+	EVENT_ERROR     = events.CreateEventType("client_error")
+	EVENT_CONNECTED = events.CreateEventType("client_connected")
 
-	ERROR_NO_CONNECTION       = events.CreateEventType("no_connection")
+	ERROR_FATAL               = events.CreateEventType("fatal_error") // Only when connection fails or being dropped
 	ERROR_BROKEN_PACKAGE_SEND = events.CreateEventType("broken_package")
 	ERROR_BROKEN_PACKAGE_RECV = events.CreateEventType("broken_package_recv")
 )
@@ -28,9 +28,9 @@ const (
 )
 
 type ClientErrorMessage struct {
-	code          events.EventType
-	details       string
-	originalError error
+	Code          events.EventType
+	Details       string
+	OriginalError error
 }
 
 type Client struct {
@@ -39,8 +39,8 @@ type Client struct {
 	ClientEventsChannel uuid.UUID
 	eventsToSend        lists.Bidirectional
 	conn                net.Conn
-	sendPolling         bool
 	mutex               sync.Mutex
+	lastError           error
 }
 
 func New() *Client {
@@ -49,13 +49,12 @@ func New() *Client {
 
 		ClientEventsChannel: uuid.New(),
 		eventsToSend:        squeue.New(),
-		sendPolling:         false,
 		mutex:               sync.Mutex{},
 	}
 }
 
 func (c *Client) AddClientListener(etype events.EventType, handler events.EventHandlerFn) {
-	c.AddListener(c.ClientEventsChannel, etype, handler)
+	c.Listen(c.ClientEventsChannel, etype, handler)
 }
 
 func (c *Client) SendEvent(channelId uuid.UUID, etype events.EventType, data any) {
@@ -69,84 +68,75 @@ func (c *Client) SendEvent(channelId uuid.UUID, etype events.EventType, data any
 	})
 }
 
-// func (c)
-
-func (c *Client) pollSendQueue() {
-	for {
-		for c.eventsToSend.IsEmpty() {
+func (c *Client) pollSendQueue(wg *sync.WaitGroup) {
+root:
+	for c.conn != nil {
+		for c.conn != nil && c.eventsToSend.IsEmpty() {
 			time.Sleep(time.Millisecond)
 		}
 
-		for val, ok := c.eventsToSend.Pop(); ok; val, ok = c.eventsToSend.Pop() {
+		for c.conn != nil {
+			val, ok := c.eventsToSend.Pop()
+			if !ok {
+				break
+			}
 			pack := val.(*dataPackage)
 
 			if buf, err := pack.MarshalBinary(); err != nil {
-				c.EmitEvent(c.ClientEventsChannel, EVENT_WARNING, &ClientErrorMessage{
-					code:          ERROR_BROKEN_PACKAGE_SEND,
-					details:       "The client tried to send a broken package",
-					originalError: err,
-				})
+				c.emitError(ERROR_BROKEN_PACKAGE_SEND, "The client tried to send a broken package", err)
 				continue
 			} else if _, err := c.conn.Write(buf); err != nil {
-				c.noConnectionStop(err)
+				c.lastError = err
 				c.eventsToSend.PushBack(pack)
-				return
+				break root
 			}
 		}
 	}
+
+	wg.Done()
 }
 
-func (c *Client) noConnectionStop(err error) {
-	c.Stop()
-	c.EmitEvent(c.ClientEventsChannel, EVENT_FATAL_ERROR, &ClientErrorMessage{
-		code:          ERROR_NO_CONNECTION,
-		details:       "Server connection failed",
-		originalError: err,
+func (c *Client) emitError(code events.EventType, details string, origin error) {
+	c.Emit(c.ClientEventsChannel, EVENT_ERROR, &ClientErrorMessage{
+		Code:          code,
+		Details:       details,
+		OriginalError: origin,
 	})
 }
 
 func (c *Client) Stop() {
-	c.mutex.Lock()
-	c.sendPolling = false
-
 	if c.conn != nil {
 		c.conn.Close()
 		c.conn = nil
 	}
-	c.mutex.Unlock()
 }
 
 func (c *Client) Start() (err error) {
 	c.mutex.Lock()
-	if c.conn != nil {
-		return nil
-	}
-	c.mutex.Unlock()
-
-	defer c.Stop()
+	defer c.mutex.Unlock()
 
 	c.conn, err = net.Dial("tcp", settings.Config.ServerAddr)
 	if err != nil {
-		c.noConnectionStop(err)
+		c.emitError(ERROR_FATAL, "Can't connect to the server", err)
 		return err
 	}
+	c.Emit(c.ClientEventsChannel, EVENT_CONNECTED, nil)
 
-	go c.pollSendQueue()
+	pollingWaitGroup := sync.WaitGroup{}
+	pollingWaitGroup.Add(1)
+	go c.pollSendQueue(&pollingWaitGroup)
 
 	sizeRawBuf := make([]byte, utils.INT_MAX_SIZE)
 
-	for {
+	for c.conn != nil {
 		if _, err := io.ReadFull(c.conn, sizeRawBuf); err != nil {
-			c.noConnectionStop(err)
-			return err
+			c.lastError = err
+			break
 		}
 
 		packageSize, _ := utils.BytesToInt64(sizeRawBuf)
 		if packageSize <= 0 || packageSize >= MAX_PACKAGE_SIZE_B {
-			c.EmitEvent(c.ClientEventsChannel, EVENT_WARNING, &ClientErrorMessage{
-				code:    ERROR_BROKEN_PACKAGE_RECV,
-				details: "The client got a broken package",
-			})
+			c.emitError(ERROR_BROKEN_PACKAGE_RECV, "The client got a broken package", err)
 			continue
 		}
 		packageBuf := make([]byte, packageSize+int64(len(sizeRawBuf)))
@@ -154,19 +144,24 @@ func (c *Client) Start() (err error) {
 		copy(packageBuf, sizeRawBuf)
 
 		if _, err := io.ReadFull(c.conn, packageBuf[len(sizeRawBuf):]); err != nil {
-			c.noConnectionStop(err)
-			return err
+			c.lastError = err
+			break
 		}
 
 		pack := dataPackage{event: c.Manage(&events.Event{})}
 		if err := pack.UnmarshalBinary(packageBuf); err != nil {
-			c.EmitEvent(c.ClientEventsChannel, EVENT_WARNING, &ClientErrorMessage{
-				code:    ERROR_BROKEN_PACKAGE_RECV,
-				details: "The client got a broken package",
-			})
+			c.emitError(ERROR_BROKEN_PACKAGE_RECV, "The client got a broken package", err)
 			continue
 		}
 
-		c.EmitEvent(pack.channelId, pack.event.Type, pack.event.Data)
+		c.Emit(pack.channelId, pack.event.Type, pack.event.Data)
 	}
+
+	c.Stop()
+	pollingWaitGroup.Wait()
+
+	if c.lastError != nil {
+		c.emitError(ERROR_FATAL, "The client's been disconnected", err)
+	}
+	return c.lastError
 }

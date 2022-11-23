@@ -64,7 +64,7 @@ func (c *Client) initRawMessageEvent() {
 
 // Sends messages to the main client channel, changing them to ChatMessage
 func (c *Client) rawMessagesHandler(e *events.Event) {
-	c.EmitEvent(c.ClientEventsChannel, EVENT_CHAT_MESSAGE, &ChatMessage{
+	c.Emit(c.ClientEventsChannel, EVENT_CHAT_MESSAGE, &ChatMessage{
 		Chat: c.Chats[e.ChannelId],
 		Text: e.Data.(*RawMessage).Text,
 	})
