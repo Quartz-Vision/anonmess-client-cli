@@ -10,12 +10,12 @@ import (
 )
 
 func BenchmarkSymmetricEncDec(b *testing.B) {
-	key, err := random.GenerateRandomBytes(1073741824)
+	key, err := random.GenerateRandomBytes(1073741824) // 1G
 	if err != nil {
 		return
 	}
 
-	data, err := random.GenerateRandomBytes(1073741824)
+	data, err := random.GenerateRandomBytes(1073741824) // 1G
 	if err != nil {
 		return
 	}

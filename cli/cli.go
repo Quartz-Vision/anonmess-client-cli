@@ -4,8 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/signal"
 	anoncastsdk "quartzvision/anonmess-client-cli/anoncast_sdk"
-	clientsdk "quartzvision/anonmess-client-cli/client_sdk"
+	"quartzvision/anonmess-client-cli/clientsdk"
 	"quartzvision/anonmess-client-cli/events"
 	"quartzvision/anonmess-client-cli/lists/queue"
 	"quartzvision/anonmess-client-cli/settings"
@@ -120,7 +121,17 @@ func Init() (err error) {
 
 	go client.StartConnection()
 
-	for {
+	proceed := true
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		<-c
+		client.Close()
+		os.Exit(0)
+	}()
+
+	for proceed {
 		fmt.Print("> ")
 		scanner.Scan()
 		input = scanner.Text()

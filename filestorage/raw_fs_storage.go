@@ -1,11 +1,14 @@
-package storage
+package filestorage
 
-import "os"
+import (
+	"os"
+	"path"
+)
 
 type RawFsStorage struct {
 	FilePath string
 	Opened   bool
-	file     *os.File
+	file     *File
 }
 
 func NewRawFsStorage(filePath string) (storage *RawFsStorage) {
@@ -19,11 +22,10 @@ func (obj *RawFsStorage) Open() (err error) {
 		return nil
 	}
 
-	file, err := os.OpenFile(obj.FilePath, os.O_RDWR|os.O_CREATE, 0o600)
-	if err != nil {
+	if err := os.MkdirAll(path.Dir(obj.FilePath), os.ModePerm); err != nil {
 		return err
 	}
-	obj.file = file
+	obj.file = OpenFile(obj.FilePath, os.O_RDWR|os.O_CREATE, 0o600)
 	obj.Opened = true
 
 	return nil

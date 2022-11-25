@@ -3,80 +3,80 @@ package keysstorage
 import (
 	"io"
 	"quartzvision/anonmess-client-cli/crypto/random"
-	storage "quartzvision/anonmess-client-cli/file_storage"
+	"quartzvision/anonmess-client-cli/filestorage"
 	"quartzvision/anonmess-client-cli/settings"
 )
 
 const POS_REWIND = -1
 
 type KeyBuffer struct {
-	storage        storage.Storage
+	storage        filestorage.Storage
 	currentPostion int64
 	buf            []byte
 	KeyLength      int64
 }
 
-func NewKeyBuffer(path string) (obj *KeyBuffer, err error) {
-	obj = &KeyBuffer{
-		storage:        storage.NewRawFsStorage(path),
+func NewKeyBuffer(path string) (b *KeyBuffer, err error) {
+	b = &KeyBuffer{
+		storage:        filestorage.NewRawFsStorage(path),
 		currentPostion: POS_REWIND,
 		buf:            make([]byte, settings.Config.KeysBufferSizeB),
 	}
 
-	if err := obj.storage.Open(); err != nil {
+	if err := b.storage.Open(); err != nil {
 		return nil, err
 	}
-	err = obj.UpdateLengthFromFile()
-	return obj, err
+	err = b.UpdateLengthFromFile()
+	return b, err
 }
 
-func (obj *KeyBuffer) GetKeySlice(pos int64, length int64) (data []byte, err error) {
-	relativePos := pos - obj.currentPostion
+func (b *KeyBuffer) GetKeySlice(pos int64, length int64) (data []byte, err error) {
+	relativePos := pos - b.currentPostion
 	endPos := pos + length
 
-	if endPos > obj.KeyLength {
+	if endPos > b.KeyLength {
 		return nil, ErrOutOfBound
 	}
 
-	if obj.currentPostion != POS_REWIND && relativePos >= 0 && length <= (settings.Config.KeysBufferSizeB-relativePos) {
-		return obj.buf[relativePos : relativePos+length], nil
+	if b.currentPostion != POS_REWIND && relativePos >= 0 && length <= (settings.Config.KeysBufferSizeB-relativePos) {
+		return b.buf[relativePos : relativePos+length], nil
 	}
 
-	err = obj.storage.ReadChunk(obj.buf, pos)
+	err = b.storage.ReadChunk(b.buf, pos)
 	if err == io.EOF {
 		err = nil
 	}
 
-	return obj.buf[:length], err
+	return b.buf[:length], err
 }
 
-func (obj *KeyBuffer) AppendKey(data []byte) (pos int64, err error) {
-	pos, err = obj.storage.Append(data)
+func (b *KeyBuffer) AppendKey(data []byte) (pos int64, err error) {
+	pos, err = b.storage.Append(data)
 
 	if err != nil {
 		return pos, err
 	}
 
-	if (obj.currentPostion + settings.Config.KeysBufferSizeB) > obj.KeyLength {
+	if (b.currentPostion + settings.Config.KeysBufferSizeB) > b.KeyLength {
 		// reset the buffer if its current value overlaps with appended data
-		obj.currentPostion = POS_REWIND
+		b.currentPostion = POS_REWIND
 	}
-	obj.KeyLength += int64(len(data))
+	b.KeyLength += int64(len(data))
 
 	return pos, err
 }
 
-func (obj *KeyBuffer) UpdateLengthFromFile() (err error) {
-	obj.KeyLength, err = obj.storage.Len()
+func (b *KeyBuffer) UpdateLengthFromFile() (err error) {
+	b.KeyLength, err = b.storage.Len()
 	return err
 }
 
-func (obj *KeyBuffer) GenerateKey(length int64) (err error) {
+func (b *KeyBuffer) GenerateKey(length int64) (err error) {
 	if rest := length % settings.Config.KeysBufferSizeB; rest != 0 {
 		if key, err := random.GenerateRandomBytes(rest); err != nil {
 			return err
 		} else {
-			obj.AppendKey(key)
+			b.AppendKey(key)
 		}
 	}
 
@@ -86,13 +86,13 @@ func (obj *KeyBuffer) GenerateKey(length int64) (err error) {
 		if key, err := random.GenerateRandomBytes(settings.Config.KeysBufferSizeB); err != nil {
 			return err
 		} else {
-			obj.AppendKey(key)
+			b.AppendKey(key)
 		}
 	}
 
 	return nil
 }
 
-func (obj *KeyBuffer) Close() {
-	obj.storage.Close()
+func (b *KeyBuffer) Close() {
+	b.storage.Close()
 }

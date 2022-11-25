@@ -3,7 +3,9 @@ package clientsdk
 import (
 	anoncastsdk "quartzvision/anonmess-client-cli/anoncast_sdk"
 	"quartzvision/anonmess-client-cli/events"
+	"quartzvision/anonmess-client-cli/filestorage"
 
+	"github.com/dgraph-io/badger/v3"
 	"github.com/google/uuid"
 )
 
@@ -14,14 +16,18 @@ type Client struct {
 	Chats               map[uuid.UUID]*Chat
 
 	anoncastClient *anoncastsdk.Client
+	db             *badger.DB
 }
 
 func New() *Client {
+	db, _ := badger.Open(badger.DefaultOptions(filestorage.DataPath("db")))
+
 	client := &Client{
 		ClientEventsChannel: uuid.New(),
 		Chats:               map[uuid.UUID]*Chat{},
 		EventManager:        *events.New(),
 		anoncastClient:      anoncastsdk.New(),
+		db:                  db,
 	}
 
 	client.initRawMessageEvent()
@@ -51,4 +57,8 @@ func (c *Client) StartConnection() (err error) {
 
 func (c *Client) ListenClient(etype events.EventType, handler events.EventHandlerFn) {
 	c.Listen(c.ClientEventsChannel, etype, handler)
+}
+
+func (c *Client) Close() {
+	c.db.Close()
 }
