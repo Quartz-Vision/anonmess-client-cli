@@ -35,6 +35,8 @@ func (c *Client) CreateChat(name string) (chat *Chat, err error) {
 }
 
 func (c *Client) UpdateChatsFromStorage() (err error) {
+	// if
+
 	return err
 }
 
