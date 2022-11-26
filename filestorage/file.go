@@ -19,7 +19,6 @@ type ManagedFile struct {
 	size          int64
 	file          *os.File
 	opened        bool // is the real file opened
-	accessCount   uint32
 	freeAccess    chan bool
 	wakingChannel chan bool
 	index         int // index in the openedFiles
@@ -65,7 +64,6 @@ func NewFile(filePath string, flag int, perm fs.FileMode) (file *ManagedFile, er
 		size:          -1,
 		file:          nil,
 		opened:        false,
-		accessCount:   0,
 		freeAccess:    make(chan bool, 1),
 		wakingChannel: make(chan bool, 1),
 		index:         -1,
