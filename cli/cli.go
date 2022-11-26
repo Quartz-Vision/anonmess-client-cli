@@ -121,6 +121,8 @@ func Init() (err error) {
 
 	go client.StartConnection()
 
+	client.UpdateChatsList()
+
 	proceed := true
 
 	c := make(chan os.Signal, 1)
@@ -152,6 +154,8 @@ func Init() (err error) {
 			currentChat.SendMessage(input)
 		}
 	}
+
+	client.Close()
 
 	return nil
 }

@@ -3,39 +3,39 @@ package utils
 import "unsafe"
 
 func XorSlices(a []byte, b []byte) {
-	data_len := uint(len(a))
-	chunks_count := data_len >> 3
+	dataLen := uint(len(a))
+	chunksCount := dataLen >> 3
 
-	if chunks_count != 0 {
+	if chunksCount != 0 {
 		aPointer := unsafe.Pointer(&a[0])
 		bPointer := unsafe.Pointer(&b[0])
 
-		for i := uint(0); i < chunks_count; i++ {
+		for i := uint(0); i < chunksCount; i++ {
 			*(*uint64)(unsafe.Add(aPointer, i<<3)) ^= *(*uint64)(unsafe.Add(bPointer, i<<3))
 		}
 	}
 
-	for i := chunks_count << 3; i < data_len; i++ {
+	for i := chunksCount << 3; i < dataLen; i++ {
 		a[i] ^= b[i]
 	}
 }
 
 func AreSlicesEqual(a []byte, b []byte) (ok bool) {
-	data_len := uint(len(a))
-	chunks_count := data_len >> 3
+	dataLen := uint(len(a))
+	chunksCount := dataLen >> 3
 
-	if chunks_count != 0 {
+	if chunksCount != 0 {
 		aPointer := unsafe.Pointer(&a[0])
 		bPointer := unsafe.Pointer(&b[0])
 
-		for i := uint(0); i < chunks_count; i++ {
+		for i := uint(0); i < chunksCount; i++ {
 			if *(*uint64)(unsafe.Add(aPointer, i<<3)) != *(*uint64)(unsafe.Add(bPointer, i<<3)) {
 				return false
 			}
 		}
 	}
 
-	for i := chunks_count << 3; i < data_len; i++ {
+	for i := chunksCount << 3; i < dataLen; i++ {
 		if a[i] != b[i] {
 			return false
 		}

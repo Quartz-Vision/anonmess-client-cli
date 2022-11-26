@@ -8,6 +8,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/joho/godotenv v1.4.0
 	github.com/kudelskisecurity/crystals-go v0.0.0-20210705112123-14b89bfbcdc8
+	github.com/orcaman/concurrent-map/v2 v2.0.1
 )
 
 require (
@@ -22,7 +23,6 @@ require (
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/flatbuffers v1.12.1 // indirect
 	github.com/klauspost/compress v1.12.3 // indirect
-	github.com/orcaman/concurrent-map/v2 v2.0.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	go.opencensus.io v0.22.5 // indirect
 	golang.org/x/net v0.0.0-20201021035429-f5854403a974 // indirect
@@ -30,7 +30,6 @@ require (
 
 require (
 	github.com/dgraph-io/badger/v3 v3.2103.4
-	github.com/sigurn/crc8 v0.0.0-20220107193325-2243fe600f9f
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad // indirect
 	golang.org/x/sys v0.0.0-20221010170243-090e33056c14 // indirect
 )

@@ -16,17 +16,13 @@ type KeyPack struct {
 func NewKeyPack(packId uuid.UUID, prefix string) (keyPack *KeyPack, err error) {
 	keyPack = &KeyPack{}
 
-	if buf, err := NewKeyBuffer(keyPath(packId, prefix, PACK_PREFIX_ID_KEY)); err != nil {
+	if utils.UntilErrorPointer(
+		&err,
+		func() { keyPack.idKey, err = NewKeyBuffer(keyPath(packId, prefix, PACK_PREFIX_ID_KEY)) },
+		func() { keyPack.payloadKey, err = NewKeyBuffer(keyPath(packId, prefix, PACK_PREFIX_PAYLOAD_KEY)) },
+	) != nil {
+		keyPack.Close()
 		return nil, err
-	} else {
-		keyPack.idKey = buf
-	}
-
-	if buf, err := NewKeyBuffer(keyPath(packId, prefix, PACK_PREFIX_PAYLOAD_KEY)); err != nil {
-		safeClose(keyPack.idKey)
-		return nil, err
-	} else {
-		keyPack.payloadKey = buf
 	}
 
 	size, err := keyPack.idKey.Size()
@@ -35,10 +31,10 @@ func NewKeyPack(packId uuid.UUID, prefix string) (keyPack *KeyPack, err error) {
 	}
 
 	if size == 0 {
-		err = utils.UntilFirstError([]utils.ErrFn{
+		err = utils.UntilFirstError(
 			func() error { return keyPack.idKey.GenerateKey(settings.Config.KeysStartSizeB) },
 			func() error { return keyPack.payloadKey.GenerateKey(settings.Config.KeysStartSizeB) },
-		})
+		)
 	}
 
 	return keyPack, err
@@ -57,20 +53,17 @@ type KeyIOPack struct {
 func NewKeyIOPack(packId uuid.UUID) (keyIOPack *KeyIOPack, err error) {
 	keyIOPack = &KeyIOPack{}
 
-	if pack, err := NewKeyPack(packId, PACK_PREFIX_IN); err != nil {
-		return nil, err
-	} else {
-		keyIOPack.InKeys = pack
+	utils.UntilErrorPointer(
+		&err,
+		func() { keyIOPack.InKeys, err = NewKeyPack(packId, PACK_PREFIX_IN) },
+		func() { keyIOPack.InKeys, err = NewKeyPack(packId, PACK_PREFIX_IN) },
+	)
+
+	if err != nil {
+		keyIOPack.Close()
 	}
 
-	if pack, err := NewKeyPack(packId, PACK_PREFIX_OUT); err != nil {
-		safeClose(keyIOPack.InKeys)
-		return nil, err
-	} else {
-		keyIOPack.OutKeys = pack
-	}
-
-	return keyIOPack, nil
+	return keyIOPack, err
 }
 
 func (obj *KeyIOPack) Close() {

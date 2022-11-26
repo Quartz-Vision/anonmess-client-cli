@@ -9,10 +9,10 @@ import (
 )
 
 func Init() error {
-	return utils.UntilFirstError([]utils.ErrFn{
+	return utils.UntilFirstError(
 		settings.Init,
 		filestorage.InitFileManager,
 		keysstorage.Init,
 		cli.Init,
-	})
+	)
 }
