@@ -1,13 +1,18 @@
 package filestorage
 
 import (
+	"fmt"
 	"io"
 	"io/fs"
+	"math/rand"
 	"os"
 	"path"
 )
 
-const MAX_OPENED_FILES = 32
+const (
+	MAX_OPENED_FILES      = 32 // MAX_OPENED_FILES % WAKING_WORKERS_NUMBER = 0
+	WAKING_WORKERS_NUMBER = 4
+)
 
 // A file that persists its state between closes.
 // Allows to open more files than available in the system for a process
@@ -21,7 +26,6 @@ type ManagedFile struct {
 	opened        bool // is the real file opened
 	freeAccess    chan bool
 	wakingChannel chan bool
-	index         int // index in the openedFiles
 }
 
 var (
@@ -29,33 +33,40 @@ var (
 	globalWakingChannel = make(chan *ManagedFile, MAX_OPENED_FILES)
 )
 
-func InitFileManager() (err error) {
-	go func() {
-	root:
-		for f := range globalWakingChannel {
-			for i, tfile := range openedFiles {
-				if tfile == nil {
-					openedFiles[i] = f
-					f.index = i
-					f.wakingChannel <- true
-					continue root
-				}
+func startWakingManager(fileSlots []*ManagedFile) {
+	slotsLen := len(fileSlots)
+root:
+	for f := range globalWakingChannel {
+		for i, tfile := range fileSlots {
+			if tfile == nil {
+				fileSlots[i] = f
+				f.wakingChannel <- true
+				continue root
 			}
-			for i, tfile := range openedFiles {
-				if tfile.suspend() {
-					openedFiles[i] = f
-					f.wakingChannel <- true
-					continue root
-				}
-			}
-			f.wakingChannel <- false
 		}
-	}()
+		for _, i := range rand.Perm(slotsLen) {
+			if fileSlots[i].suspend() {
+				fileSlots[i] = f
+				f.wakingChannel <- true
+				continue root
+			}
+		}
+		f.wakingChannel <- false
+	}
+}
+
+func InitFileManager() (err error) {
+	slotsPerWorker := MAX_OPENED_FILES / WAKING_WORKERS_NUMBER
+	for i := 0; i < WAKING_WORKERS_NUMBER; i++ {
+		go startWakingManager(openedFiles[i*slotsPerWorker : (i+1)*slotsPerWorker])
+	}
 
 	return nil
 }
 
 func NewFile(filePath string, flag int, perm fs.FileMode) (file *ManagedFile, err error) {
+	fmt.Println(openedFiles)
+
 	f := &ManagedFile{
 		Path:          filePath,
 		flag:          flag,
@@ -66,7 +77,6 @@ func NewFile(filePath string, flag int, perm fs.FileMode) (file *ManagedFile, er
 		opened:        false,
 		freeAccess:    make(chan bool, 1),
 		wakingChannel: make(chan bool, 1),
-		index:         -1,
 	}
 	f.freeAccess <- true
 
@@ -83,7 +93,6 @@ func (f *ManagedFile) suspend() bool {
 		}
 		f.file.Close()
 		f.opened = false
-		f.index = -1
 		f.freeAccess <- true
 		return true
 	default:
@@ -218,7 +227,6 @@ func (f *ManagedFile) Close() {
 	if f.opened {
 		f.file.Close()
 		f.opened = false
-		openedFiles[f.index] = nil
 	}
 	f.freeAccess <- true
 }
