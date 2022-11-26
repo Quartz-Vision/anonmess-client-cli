@@ -46,9 +46,10 @@ func (b *BufferedFile) ReadAt(data []byte, offset int64) (nRead int64, err error
 	if err == io.EOF {
 		err = nil
 	}
+	b.currentPostion = offset
 
 	copy(data, b.buf)
-	return length, nil
+	return length, err
 }
 
 func (b *BufferedFile) Seek(offset int64, whence int) (ret int64, err error) {
