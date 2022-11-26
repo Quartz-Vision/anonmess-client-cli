@@ -33,6 +33,7 @@ var (
 	globalWakingChannel = make(chan *ManagedFile, MAX_OPENED_FILES)
 )
 
+// manages some set of file slots for opened files and tries to wake up suspended files if possible
 func startWakingManager(fileSlots []*ManagedFile) {
 	slotsLen := len(fileSlots)
 root:
