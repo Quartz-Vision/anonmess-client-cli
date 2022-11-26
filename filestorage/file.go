@@ -124,6 +124,10 @@ func (f *ManagedFile) ReadAt(b []byte, offset int64) (nRead int64, err error) {
 		}
 	}
 
+	if offset < 0 {
+		offset += f.size + 1
+	}
+
 	n, err := f.file.ReadAt(b, offset)
 	f.freeAccess <- true
 	return int64(n), err
