@@ -49,7 +49,8 @@ func BenchmarkReadKey(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for i := int64(0); i < 200; i++ {
-			_, err := buf.GetKeySlice((i*10)<<10, 1024)
+			k := make([]byte, (i*10)<<10)
+			_, err := buf.ReadAt(k, 1024)
 			if err != nil {
 				fmt.Println("NO KEY")
 				return

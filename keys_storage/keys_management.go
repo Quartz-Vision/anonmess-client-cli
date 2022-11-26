@@ -29,7 +29,12 @@ func NewKeyPack(packId uuid.UUID, prefix string) (keyPack *KeyPack, err error) {
 		keyPack.payloadKey = buf
 	}
 
-	if keyPack.idKey.KeyLength == 0 {
+	size, err := keyPack.idKey.Size()
+	if err != nil {
+		return nil, err
+	}
+
+	if size == 0 {
 		err = utils.UntilFirstError([]utils.ErrFn{
 			func() error { return keyPack.idKey.GenerateKey(settings.Config.KeysStartSizeB) },
 			func() error { return keyPack.payloadKey.GenerateKey(settings.Config.KeysStartSizeB) },
@@ -98,12 +103,13 @@ func UnmanageKeyPack(packId uuid.UUID) {
 
 func TryDecodePackId(idKeyPos int64, encId []byte) (id uuid.UUID, ok bool) {
 	idLen := int64(len(encId))
+	tmpEncId := make([]byte, idLen)
+	key := make([]byte, idLen)
 
 	for id := range Packs {
-		tmpEncId := make([]byte, idLen)
 		copy(tmpEncId, encId)
 
-		key, err := Packs[id].InKeys.idKey.GetKeySlice(idKeyPos, idLen)
+		_, err := Packs[id].InKeys.idKey.ReadAt(key, idKeyPos)
 
 		if err == nil && quartzSymmetric.Decode(tmpEncId, key) == nil && utils.AreSlicesEqual(tmpEncId, id[:]) {
 			return id, true
