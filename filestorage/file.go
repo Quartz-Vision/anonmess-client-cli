@@ -1,7 +1,6 @@
 package filestorage
 
 import (
-	"fmt"
 	"io"
 	"io/fs"
 	"math/rand"
@@ -66,8 +65,6 @@ func InitFileManager() (err error) {
 }
 
 func NewFile(filePath string, flag int, perm fs.FileMode) (file *ManagedFile, err error) {
-	fmt.Println(openedFiles)
-
 	f := &ManagedFile{
 		Path:          filePath,
 		flag:          flag,
