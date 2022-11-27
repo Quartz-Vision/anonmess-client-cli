@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"sync"
 )
 
 const (
@@ -23,8 +24,9 @@ type ManagedFile struct {
 	size          int64
 	file          *os.File
 	opened        bool // is the real file opened
-	freeAccess    chan bool
 	wakingChannel chan bool
+	rwmutex       sync.RWMutex
+	wakingMutex   sync.Mutex
 }
 
 var (
@@ -45,7 +47,7 @@ root:
 			}
 		}
 		for _, i := range rand.Perm(slotsLen) {
-			if fileSlots[i].suspend() {
+			if fileSlots[i].trySuspend() {
 				fileSlots[i] = f
 				f.wakingChannel <- true
 				continue root
@@ -73,33 +75,37 @@ func NewFile(filePath string, flag int, perm fs.FileMode) (file *ManagedFile, er
 		size:          -1,
 		file:          nil,
 		opened:        false,
-		freeAccess:    make(chan bool, 1),
+		rwmutex:       sync.RWMutex{},
+		wakingMutex:   sync.Mutex{},
 		wakingChannel: make(chan bool, 1),
 	}
-	f.freeAccess <- true
 
 	return f, os.MkdirAll(path.Dir(filePath), os.ModePerm)
 }
 
 // Tries to close the file. Returns true if the file is closed eventually
-func (f *ManagedFile) suspend() bool {
-	select {
-	case <-f.freeAccess:
-		if !f.opened {
-			f.freeAccess <- true
-			return true
-		}
-		f.file.Close()
-		f.opened = false
-		f.freeAccess <- true
-		return true
-	default:
+func (f *ManagedFile) trySuspend() bool {
+	if !f.rwmutex.TryLock() {
 		return false
 	}
+
+	if f.opened {
+		f.file.Close()
+	}
+	f.opened = false
+	f.rwmutex.Unlock()
+	return true
 }
 
 // Waits for a free place in openedFiles and then opens the fail
 func (f *ManagedFile) wake() (err error) {
+	f.wakingMutex.Lock()
+
+	if f.opened {
+		f.wakingMutex.Unlock()
+		return nil
+	}
+
 	for !f.opened {
 		globalWakingChannel <- f
 		f.opened = <-f.wakingChannel
@@ -116,15 +122,17 @@ func (f *ManagedFile) wake() (err error) {
 			f.size, _ = f.file.Seek(0, io.SeekEnd)
 		}
 	}
+
+	f.wakingMutex.Unlock()
 	return err
 }
 
 func (f *ManagedFile) ReadAt(b []byte, offset int64) (nRead int64, err error) {
-	<-f.freeAccess
+	f.rwmutex.RLock()
 
-	if !f.opened {
+	if !f.opened { // don't do the expesive call with mutex
 		if err = f.wake(); err != nil {
-			f.freeAccess <- true
+			f.rwmutex.RUnlock()
 			return 0, err
 		}
 	}
@@ -134,37 +142,38 @@ func (f *ManagedFile) ReadAt(b []byte, offset int64) (nRead int64, err error) {
 	}
 
 	n, err := f.file.ReadAt(b, offset)
-	f.freeAccess <- true
+
+	f.rwmutex.RUnlock()
 	return int64(n), err
 }
 
 func (f *ManagedFile) Seek(offset int64, whence int) (ret int64, err error) {
-	<-f.freeAccess
+	f.rwmutex.Lock()
 
 	if (whence == io.SeekStart && offset == f.pos) || (whence == io.SeekEnd && (f.size-offset) == f.pos) {
 		pos := f.pos
-		f.freeAccess <- true
+		f.rwmutex.Unlock()
 		return pos, nil
 	}
 
 	if !f.opened {
 		if err = f.wake(); err != nil {
-			f.freeAccess <- true
+			f.rwmutex.Unlock()
 			return ret, err
 		}
 	}
 
 	ret, err = f.file.Seek(offset, whence)
-	f.freeAccess <- true
+	f.rwmutex.Unlock()
 	return ret, err
 }
 
 func (f *ManagedFile) Write(b []byte) (nWritten int64, err error) {
-	<-f.freeAccess
+	f.rwmutex.Lock()
 
 	if !f.opened {
 		if err = f.wake(); err != nil {
-			f.freeAccess <- true
+			f.rwmutex.Unlock()
 			return 0, err
 		}
 	}
@@ -174,16 +183,16 @@ func (f *ManagedFile) Write(b []byte) (nWritten int64, err error) {
 	if newSize > f.size {
 		f.size = newSize
 	}
-	f.freeAccess <- true
+	f.rwmutex.Unlock()
 	return int64(n), err
 }
 
 func (f *ManagedFile) WriteAt(b []byte, offset int64) (nWritten int64, err error) {
-	<-f.freeAccess
+	f.rwmutex.Lock()
 
 	if !f.opened {
 		if err = f.wake(); err != nil {
-			f.freeAccess <- true
+			f.rwmutex.Unlock()
 			return 0, err
 		}
 	}
@@ -193,16 +202,16 @@ func (f *ManagedFile) WriteAt(b []byte, offset int64) (nWritten int64, err error
 	}
 
 	n, err := f.file.WriteAt(b, offset)
+	newSize := offset + int64(n)
 	if err != nil {
-		f.freeAccess <- true
+		f.rwmutex.Unlock()
 		return 0, err
 	}
-	newSize := offset + int64(n)
 	if newSize > f.size {
 		f.size = newSize
 	}
 
-	f.freeAccess <- true
+	f.rwmutex.Unlock()
 	return int64(n), err
 }
 
@@ -213,18 +222,16 @@ func (f *ManagedFile) Append(data []byte) (pos int64, err error) {
 
 func (f *ManagedFile) Size() (length int64, err error) {
 	if f.size == -1 {
-		<-f.freeAccess
 		err = f.wake()
-		f.freeAccess <- true
 	}
 	return f.size, err
 }
 
 func (f *ManagedFile) Close() {
-	<-f.freeAccess
+	f.rwmutex.Lock()
 	if f.opened {
 		f.file.Close()
 		f.opened = false
 	}
-	f.freeAccess <- true
+	f.rwmutex.Unlock()
 }

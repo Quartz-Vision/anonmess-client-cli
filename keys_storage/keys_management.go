@@ -56,7 +56,7 @@ func NewKeyIOPack(packId uuid.UUID) (keyIOPack *KeyIOPack, err error) {
 	utils.UntilErrorPointer(
 		&err,
 		func() { keyIOPack.InKeys, err = NewKeyPack(packId, PACK_PREFIX_IN) },
-		func() { keyIOPack.InKeys, err = NewKeyPack(packId, PACK_PREFIX_IN) },
+		func() { keyIOPack.OutKeys, err = NewKeyPack(packId, PACK_PREFIX_OUT) },
 	)
 
 	if err != nil {

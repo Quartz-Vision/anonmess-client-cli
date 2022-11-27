@@ -12,8 +12,8 @@ func UntilFirstError(fns ...ErrFn) error {
 }
 
 func UntilErrorPointer(err *error, fns ...func()) error {
-	for _, fn := range fns {
-		fn()
+	for i := range fns {
+		fns[i]()
 		if *err != nil {
 			return *err
 		}
