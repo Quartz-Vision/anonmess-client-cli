@@ -14,6 +14,7 @@ var Config = struct {
 	AppConfigFileName          string
 	AppDataDefaultDirName      string
 	AppDataDirPath             string `env:"PROGRAM_DATA_DIR" envDefault:""`
+	AppDownloadsDirPath        string `env:"PROGRAM_DOWNLOADS_DIR" envDefault:""`
 	KeysBufferSizeKB           int64  `env:"KEYS_BUFFER_SIZE_KB" envDefault:"1024"`
 	KeysBufferSizeB            int64
 	KeysStartSizeMB            int64 `env:"KEYS_START_SIZE_MB" envDefault:"1"`
@@ -34,6 +35,18 @@ var Config = struct {
 func tryLoadEnv(paths ...string) bool {
 	err := godotenv.Load(paths...)
 	return err == nil
+}
+
+func selectPath(path string, fallback string) (r string, err error) {
+	if path == "" {
+		return fallback, nil
+	} else {
+		path, err := filepath.Abs(path)
+		if err != nil {
+			return r, ErrEnvParsing
+		}
+		return path, nil
+	}
 }
 
 func Init() error {
@@ -65,14 +78,21 @@ func Init() error {
 	Config.ServerAddr = Config.ServerHost + ":" + strconv.FormatInt(int64(Config.ServerPort), 10)
 
 	// .AppDataDirPath
-	if Config.AppDataDirPath == "" {
-		Config.AppDataDirPath = filepath.Join(userHomeDir, "."+Config.AppName, Config.AppDataDefaultDirName)
-	} else {
-		path, err := filepath.Abs(Config.AppDataDirPath)
-		if err != nil {
-			return ErrEnvParsing
-		}
-		Config.AppDataDirPath = path
+	Config.AppDataDirPath, err = selectPath(
+		Config.AppDataDirPath,
+		filepath.Join(userHomeDir, "."+Config.AppName, Config.AppDataDefaultDirName),
+	)
+	if err != nil {
+		return err
+	}
+
+	// .AppDownloadsDirPath
+	Config.AppDownloadsDirPath, err = selectPath(
+		Config.AppDownloadsDirPath,
+		filepath.Join(userHomeDir, "Downloads", Config.AppName),
+	)
+	if err != nil {
+		return err
 	}
 
 	// .KeysBufferSizeB

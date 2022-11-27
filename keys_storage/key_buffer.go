@@ -1,7 +1,7 @@
 package keysstorage
 
 import (
-	"os"
+	"errors"
 	"quartzvision/anonmess-client-cli/crypto/random"
 	"quartzvision/anonmess-client-cli/filestorage"
 	"quartzvision/anonmess-client-cli/settings"
@@ -14,7 +14,7 @@ type KeyBuffer struct {
 }
 
 func NewKeyBuffer(path string) (b *KeyBuffer, err error) {
-	file, err := filestorage.NewFile(path, os.O_RDWR|os.O_CREATE, 0o600)
+	file, err := filestorage.NewFile(path, false, 0o600)
 	if err != nil {
 		return nil, err
 	}
@@ -46,4 +46,34 @@ func (b *KeyBuffer) GenerateKey(length int64) (err error) {
 	}
 
 	return nil
+}
+
+var ErrCPReadingSource = errors.New("file copying error: source reading failed")
+var ErrCPWritingDestination = errors.New("file copying error: destination writing failed")
+
+func (b *KeyBuffer) SaveTo(dstPath string) (err error) {
+	dstFile, err := filestorage.NewFile(dstPath, true, 0o600)
+	if err != nil {
+		return err
+	}
+
+	size, err := b.Size()
+	if err != nil {
+		return err
+	}
+
+	buf := make([]byte, b.BufferSize)
+
+	for i := int64(0); i < size; i += b.BufferSize {
+		if _, err = b.ReadAt(buf, i); err != nil {
+			return ErrCPReadingSource
+		}
+		if _, err = dstFile.Append(buf); err != nil {
+			return ErrCPWritingDestination
+		}
+	}
+
+	dstFile.Close()
+
+	return
 }

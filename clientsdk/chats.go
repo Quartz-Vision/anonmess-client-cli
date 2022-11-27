@@ -1,7 +1,9 @@
 package clientsdk
 
 import (
+	"path/filepath"
 	keysstorage "quartzvision/anonmess-client-cli/keys_storage"
+	"quartzvision/anonmess-client-cli/settings"
 	"quartzvision/anonmess-client-cli/utils"
 
 	"github.com/dgraph-io/badger/v3"
@@ -74,7 +76,7 @@ func (c *Client) UpdateChatsList() (err error) {
 	return err
 }
 
-func (c *Client) ManageChatFromStorage(chatId uuid.UUID, name string) (chat *Chat, err error) {
+func (c *Client) AddChatFromKeys(chatId uuid.UUID, name string) (chat *Chat, err error) {
 	if chat, ok := c.Chats[chatId]; ok {
 		return chat, nil
 	}
@@ -89,4 +91,8 @@ func (c *Client) ManageChatFromStorage(chatId uuid.UUID, name string) (chat *Cha
 	}
 	c.ManageChat(chat)
 	return chat, nil
+}
+
+func (ch *Chat) ExportKeysForShare() (err error) {
+	return keysstorage.ExportSharedKeys(ch.Id, filepath.Join(settings.Config.AppDownloadsDirPath, ch.Id.String()))
 }

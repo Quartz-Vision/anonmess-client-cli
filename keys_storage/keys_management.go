@@ -1,7 +1,9 @@
 package keysstorage
 
 import (
+	"path/filepath"
 	quartzSymmetric "quartzvision/anonmess-client-cli/crypto/symmetric"
+	"quartzvision/anonmess-client-cli/filestorage"
 	"quartzvision/anonmess-client-cli/settings"
 	"quartzvision/anonmess-client-cli/utils"
 
@@ -92,6 +94,27 @@ func UnmanageKeyPack(packId uuid.UUID) {
 		safeClose(pack)
 		delete(Packs, packId)
 	}
+}
+
+func ExportSharedKeys(packId uuid.UUID, dest string) (err error) {
+	pack := Packs[packId]
+	packageFile, err := filestorage.NewFile(filepath.Join(dest, "_package_"), true, 0o600)
+	if err != nil {
+		return err
+	}
+
+	_, err = packageFile.Write(packId[:])
+	if err != nil {
+		return err
+	}
+	packageFile.Close()
+
+	pack.InKeys.idKey.SaveTo(filepath.Join(dest, PACK_PREFIX_OUT+"-"+PACK_PREFIX_ID_KEY))
+	pack.InKeys.payloadKey.SaveTo(filepath.Join(dest, PACK_PREFIX_OUT+"-"+PACK_PREFIX_PAYLOAD_KEY))
+	pack.OutKeys.idKey.SaveTo(filepath.Join(dest, PACK_PREFIX_IN+"-"+PACK_PREFIX_ID_KEY))
+	pack.OutKeys.payloadKey.SaveTo(filepath.Join(dest, PACK_PREFIX_IN+"-"+PACK_PREFIX_PAYLOAD_KEY))
+
+	return
 }
 
 func TryDecodePackId(idKeyPos int64, encId []byte) (id uuid.UUID, ok bool) {

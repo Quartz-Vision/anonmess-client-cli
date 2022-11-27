@@ -66,10 +66,15 @@ func InitFileManager() (err error) {
 	return nil
 }
 
-func NewFile(filePath string, flag int, perm fs.FileMode) (file *ManagedFile, err error) {
+// Creates a managed file.
+//
+// Custom flags are unawailable here since the nature of the manager requieres the access methods to be as uniform as possible.
+func NewFile(filePath string, truncate bool, perm fs.FileMode) (file *ManagedFile, err error) {
+	err = os.MkdirAll(path.Dir(filePath), os.ModePerm)
+
 	f := &ManagedFile{
 		Path:          filePath,
-		flag:          flag,
+		flag:          os.O_RDWR | os.O_CREATE,
 		perm:          perm,
 		pos:           0,
 		size:          -1,
@@ -80,7 +85,11 @@ func NewFile(filePath string, flag int, perm fs.FileMode) (file *ManagedFile, er
 		wakingChannel: make(chan bool, 1),
 	}
 
-	return f, os.MkdirAll(path.Dir(filePath), os.ModePerm)
+	if truncate && err == nil {
+		err = f.trunc()
+	}
+
+	return f, err
 }
 
 // Tries to close the file. Returns true if the file is closed eventually
@@ -98,6 +107,7 @@ func (f *ManagedFile) trySuspend() bool {
 }
 
 // Waits for a free place in openedFiles and then opens the fail
+// Should be called ONLY inside the `rwmutex` context
 func (f *ManagedFile) wake() (err error) {
 	f.wakingMutex.Lock()
 
@@ -106,7 +116,7 @@ func (f *ManagedFile) wake() (err error) {
 		return nil
 	}
 
-	for !f.opened {
+	for !f.opened { // wait for a free file slot
 		globalWakingChannel <- f
 		f.opened = <-f.wakingChannel
 	}
@@ -115,15 +125,33 @@ func (f *ManagedFile) wake() (err error) {
 	if err != nil {
 		f.opened = false
 	} else {
-		if f.pos != 0 {
-			f.file.Seek(f.pos, io.SeekStart)
-		}
 		if f.size == -1 {
 			f.size, _ = f.file.Seek(0, io.SeekEnd)
+		}
+		if f.pos != 0 {
+			f.file.Seek(f.pos, io.SeekStart)
 		}
 	}
 
 	f.wakingMutex.Unlock()
+	return err
+}
+
+// completely safe truncation method
+func (f *ManagedFile) trunc() (err error) {
+	f.rwmutex.Lock()
+	if f.opened {
+		f.file.Close()
+		f.opened = false
+	}
+
+	f.flag |= os.O_TRUNC
+	f.size = 0
+	f.pos = 0
+	err = f.wake()
+	f.flag &= ^os.O_TRUNC
+
+	f.rwmutex.Unlock()
 	return err
 }
 

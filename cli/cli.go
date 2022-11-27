@@ -8,7 +8,6 @@ import (
 	anoncastsdk "quartzvision/anonmess-client-cli/anoncast_sdk"
 	"quartzvision/anonmess-client-cli/clientsdk"
 	"quartzvision/anonmess-client-cli/events"
-	"quartzvision/anonmess-client-cli/lists/queue"
 	"quartzvision/anonmess-client-cli/settings"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 )
 
 var currentChat *clientsdk.Chat = nil
-var t = queue.New()
 
 func chat(client *clientsdk.Client, args ...string) bool {
 	const help = (`
@@ -56,32 +54,27 @@ func chat(client *clientsdk.Client, args ...string) bool {
 				fmt.Printf("Chat %s doesn't exist\n", args[1])
 			}
 		}
-	case "test-add":
-		id, _ := uuid.Parse(args[1])
-		client.ManageChat(&clientsdk.Chat{
-			Id:   id,
-			Name: args[2],
-		})
-
-	case "test":
-		start := time.Now()
-		c := 1000000
-		for i := 0; i < c; i++ {
-			currentChat.SendMessage("test")
-		}
-		end := time.Now()
-
-		fmt.Printf("\nT/append: %v (%s), c: %v\n", (end.Sub(start)).Milliseconds(), "ms", c)
-	case "push":
-		t.Push(args[1])
-	case "pop":
-		if tt, ok := t.Pop(); ok {
-			fmt.Println(tt.(string))
+	case "share":
+		if id, err := uuid.Parse(args[1]); err != nil {
+			fmt.Printf("Error parsing uuid: %s\n", err)
 		} else {
-			fmt.Println("< >")
+			if chat, ok := client.Chats[id]; ok {
+				chat.ExportKeysForShare()
+			} else {
+				fmt.Printf("Chat %s doesn't exist\n", args[1])
+			}
 		}
-	case "pb":
-		t.PushBack(args[1])
+	case "connect":
+		if id, err := uuid.Parse(args[1]); err != nil {
+			fmt.Printf("Error parsing uuid: %s\n", err)
+		} else {
+			if chat, ok := client.Chats[id]; ok {
+				currentChat = chat
+			} else {
+				currentChat = nil
+				fmt.Printf("Chat %s doesn't exist\n", args[1])
+			}
+		}
 	}
 
 	return false
