@@ -174,7 +174,6 @@ func (f *ManagedFile) ReadAt(b []byte, offset int64) (nRead int64, err error) {
 	f.rwmutex.RUnlock()
 	return int64(n), err
 }
-
 func (f *ManagedFile) Seek(offset int64, whence int) (ret int64, err error) {
 	f.rwmutex.Lock()
 
@@ -195,7 +194,6 @@ func (f *ManagedFile) Seek(offset int64, whence int) (ret int64, err error) {
 	f.rwmutex.Unlock()
 	return ret, err
 }
-
 func (f *ManagedFile) Write(b []byte) (nWritten int64, err error) {
 	f.rwmutex.Lock()
 
@@ -214,7 +212,6 @@ func (f *ManagedFile) Write(b []byte) (nWritten int64, err error) {
 	f.rwmutex.Unlock()
 	return int64(n), err
 }
-
 func (f *ManagedFile) WriteAt(b []byte, offset int64) (nWritten int64, err error) {
 	f.rwmutex.Lock()
 
@@ -242,19 +239,73 @@ func (f *ManagedFile) WriteAt(b []byte, offset int64) (nWritten int64, err error
 	f.rwmutex.Unlock()
 	return int64(n), err
 }
-
 func (f *ManagedFile) Append(data []byte) (pos int64, err error) {
 	_, err = f.WriteAt(data, f.size)
 	return f.size - int64(len(data)), err
 }
-
 func (f *ManagedFile) Size() (length int64, err error) {
 	if f.size == -1 {
 		err = f.wake()
 	}
 	return f.size, err
 }
+func (f *ManagedFile) TRead(m func(txn Readable) (err error)) (err error) {
+	f.rwmutex.RLock()
+	if !f.opened {
+		if err = f.wake(); err != nil {
+			return err
+		}
+	}
+	err = m(&ManagedFileReadableTxn{file: f})
+	f.rwmutex.RUnlock()
 
+	return err
+}
+func (f *ManagedFile) TWrite(m func(txn Writable) (err error)) (err error) {
+	f.rwmutex.Lock()
+	if !f.opened {
+		if err = f.wake(); err != nil {
+			return err
+		}
+	}
+	err = m(&ManagedFileWritableTxn{file: f})
+	f.rwmutex.Unlock()
+
+	return err
+}
+func (f *ManagedFile) TReadWrite(m func(txn Editable) (err error)) (err error) {
+	f.rwmutex.Lock()
+	if !f.opened {
+		if err = f.wake(); err != nil {
+			return err
+		}
+	}
+	err = m(&ManagedFileRWTxn{
+		ManagedFileWritableTxn{file: f},
+		ManagedFileReadableTxn{file: f},
+	})
+	f.rwmutex.Unlock()
+
+	return err
+}
+func (f *ManagedFile) PipeTo(dest File, chunkSize int64) (err error) {
+	return f.TRead(func(srcTxn Readable) (err error) {
+		size, _ := srcTxn.Size()
+		buf := make([]byte, chunkSize)
+
+		return dest.TWrite(func(dstTxn Writable) (err error) {
+			for i := int64(0); i < size; i += chunkSize {
+				if _, err = srcTxn.ReadAt(buf, i); err != nil {
+					return err
+				}
+				if _, err = dstTxn.Append(buf); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	})
+}
 func (f *ManagedFile) Close() {
 	f.rwmutex.Lock()
 	if f.opened {
@@ -262,4 +313,62 @@ func (f *ManagedFile) Close() {
 		f.opened = false
 	}
 	f.rwmutex.Unlock()
+}
+
+type ManagedFileWritableTxn struct {
+	Writable
+	file *ManagedFile
+}
+
+func (t *ManagedFileWritableTxn) Seek(offset int64, whence int) (ret int64, err error) {
+	return t.file.file.Seek(offset, whence)
+}
+func (t *ManagedFileWritableTxn) Write(b []byte) (nWritten int64, err error) {
+	n, err := t.file.file.Write(b)
+	newSize := t.file.pos + int64(n)
+	if newSize > t.file.size {
+		t.file.size = newSize
+	}
+	return int64(n), err
+}
+func (t *ManagedFileWritableTxn) WriteAt(b []byte, offset int64) (nWritten int64, err error) {
+	if offset < 0 {
+		offset += t.file.size + 1
+	}
+
+	n, err := t.file.file.WriteAt(b, offset)
+	newSize := offset + int64(n)
+	if err != nil {
+		return 0, err
+	}
+	if newSize > t.file.size {
+		t.file.size = newSize
+	}
+	return int64(n), err
+}
+func (t *ManagedFileWritableTxn) Append(data []byte) (pos int64, err error) {
+	_, err = t.WriteAt(data, t.file.size)
+	return t.file.size - int64(len(data)), err
+}
+
+type ManagedFileReadableTxn struct {
+	Readable
+	file *ManagedFile
+}
+
+func (t *ManagedFileReadableTxn) Size() (length int64, err error) {
+	return t.file.size, nil
+}
+func (t *ManagedFileReadableTxn) ReadAt(b []byte, offset int64) (nRead int64, err error) {
+	if offset < 0 {
+		offset += t.file.size + 1
+	}
+
+	n, err := t.file.file.ReadAt(b, offset)
+	return int64(n), err
+}
+
+type ManagedFileRWTxn struct {
+	ManagedFileWritableTxn
+	ManagedFileReadableTxn
 }

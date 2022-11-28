@@ -25,7 +25,7 @@ type EventHandlerFn func(e *Event)
 type handlersCollection map[uuid.UUID]EventHandlerFn
 type eventHandlers map[EventType]*handlersCollection
 
-type IEventManaget interface {
+type IEventManager interface {
 	Listen(channelId uuid.UUID, etype EventType, handler EventHandlerFn) (listenerId uuid.UUID)
 	// Once(channelId uuid.UUID, etype EventType, handler EventHandlerFn) (listenerId uuid.UUID)
 	Unlisten(channelId uuid.UUID, etype EventType, listenerId uuid.UUID)
@@ -33,13 +33,13 @@ type IEventManaget interface {
 	Pipe(
 		srcChannel uuid.UUID,
 		srcEtype EventType,
-		dstManager IEventManaget,
+		dstManager IEventManager,
 		dstChannel uuid.UUID,
 		dstEtype EventType,
 	) (listenerId uuid.UUID)
 }
 type EventManager struct {
-	IEventManaget
+	IEventManager
 
 	eventSerializers map[EventType]*eventSerializer
 	eventHandlers    cmap.ConcurrentMap[uuid.UUID, *eventHandlers]
@@ -150,7 +150,7 @@ func (m *EventManager) Emit(channelId uuid.UUID, etype EventType, data any) {
 func (m *EventManager) Pipe(
 	srcChannel uuid.UUID,
 	srcEtype EventType,
-	dstManager IEventManaget,
+	dstManager IEventManager,
 	dstChannel uuid.UUID,
 	dstEtype EventType,
 ) (listenerId uuid.UUID) {

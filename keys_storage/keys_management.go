@@ -11,40 +11,86 @@ import (
 )
 
 type KeyPack struct {
-	idKey      *KeyBuffer
-	payloadKey *KeyBuffer
+	IdKey         *KeyBuffer
+	PayloadKey    *KeyBuffer
+	prefix        string
+	sharingPrefix string
 }
 
-func NewKeyPack(packId uuid.UUID, prefix string) (keyPack *KeyPack, err error) {
-	keyPack = &KeyPack{}
+func NewKeyPack(packId uuid.UUID, prefix string, sharingPrefix string, fill bool) (keyPack *KeyPack, err error) {
+	keyPack = &KeyPack{
+		prefix:        prefix,
+		sharingPrefix: sharingPrefix,
+	}
 
 	if utils.UntilErrorPointer(
 		&err,
-		func() { keyPack.idKey, err = NewKeyBuffer(keyPath(packId, prefix, PACK_PREFIX_ID_KEY)) },
-		func() { keyPack.payloadKey, err = NewKeyBuffer(keyPath(packId, prefix, PACK_PREFIX_PAYLOAD_KEY)) },
+		func() { keyPack.IdKey, err = NewKeyBuffer(keyPath(packId, prefix, PACK_PREFIX_ID_KEY)) },
+		func() { keyPack.PayloadKey, err = NewKeyBuffer(keyPath(packId, prefix, PACK_PREFIX_PAYLOAD_KEY)) },
 	) != nil {
 		keyPack.Close()
 		return nil, err
 	}
 
-	size, err := keyPack.idKey.Size()
+	size, err := keyPack.IdKey.Size()
 	if err != nil {
 		return nil, err
 	}
 
-	if size == 0 {
+	if size == 0 && fill {
 		err = utils.UntilFirstError(
-			func() error { return keyPack.idKey.GenerateKey(settings.Config.KeysStartSizeB) },
-			func() error { return keyPack.payloadKey.GenerateKey(settings.Config.KeysStartSizeB) },
+			func() error { return keyPack.IdKey.GenerateKey(settings.Config.KeysStartSizeB) },
+			func() error { return keyPack.PayloadKey.GenerateKey(settings.Config.KeysStartSizeB) },
 		)
+		if err != nil {
+			keyPack.Close()
+		}
 	}
 
 	return keyPack, err
 }
 
-func (obj *KeyPack) Close() {
-	safeClose(obj.idKey)
-	safeClose(obj.payloadKey)
+func (p *KeyPack) ExportShared(dest string) (err error) {
+	return utils.UntilFirstError(
+		func() error {
+			file, err := filestorage.NewFile(filepath.Join(dest, keyFileName(p.sharingPrefix, PACK_PREFIX_ID_KEY)), true, 0o600)
+			if err == nil {
+				err = p.IdKey.PipeTo(file, settings.Config.KeysBufferSizeB)
+			}
+			return err
+		},
+		func() error {
+			file, err := filestorage.NewFile(filepath.Join(dest, keyFileName(p.sharingPrefix, PACK_PREFIX_PAYLOAD_KEY)), true, 0o600)
+			if err == nil {
+				err = p.PayloadKey.PipeTo(file, settings.Config.KeysBufferSizeB)
+			}
+			return err
+		},
+	)
+}
+
+func (p *KeyPack) ImportShared(src string) (err error) {
+	return utils.UntilFirstError(
+		func() error {
+			file, err := filestorage.NewFile(filepath.Join(src, keyFileName(p.prefix, PACK_PREFIX_ID_KEY)), false, 0o600)
+			if err == nil {
+				err = file.PipeTo(p.IdKey, settings.Config.KeysBufferSizeB)
+			}
+			return err
+		},
+		func() error {
+			file, err := filestorage.NewFile(filepath.Join(src, keyFileName(p.prefix, PACK_PREFIX_PAYLOAD_KEY)), false, 0o600)
+			if err == nil {
+				err = file.PipeTo(p.PayloadKey, settings.Config.KeysBufferSizeB)
+			}
+			return err
+		},
+	)
+}
+
+func (p *KeyPack) Close() {
+	safeClose(p.IdKey)
+	safeClose(p.PayloadKey)
 }
 
 type KeyIOPack struct {
@@ -52,13 +98,13 @@ type KeyIOPack struct {
 	OutKeys *KeyPack
 }
 
-func NewKeyIOPack(packId uuid.UUID) (keyIOPack *KeyIOPack, err error) {
+func NewKeyIOPack(packId uuid.UUID, fill bool) (keyIOPack *KeyIOPack, err error) {
 	keyIOPack = &KeyIOPack{}
 
 	utils.UntilErrorPointer(
 		&err,
-		func() { keyIOPack.InKeys, err = NewKeyPack(packId, PACK_PREFIX_IN) },
-		func() { keyIOPack.OutKeys, err = NewKeyPack(packId, PACK_PREFIX_OUT) },
+		func() { keyIOPack.InKeys, err = NewKeyPack(packId, PACK_PREFIX_IN, PACK_PREFIX_OUT, fill) },
+		func() { keyIOPack.OutKeys, err = NewKeyPack(packId, PACK_PREFIX_OUT, PACK_PREFIX_IN, fill) },
 	)
 
 	if err != nil {
@@ -68,6 +114,20 @@ func NewKeyIOPack(packId uuid.UUID) (keyIOPack *KeyIOPack, err error) {
 	return keyIOPack, err
 }
 
+func (p *KeyIOPack) ExportShared(dest string) (err error) {
+	return utils.UntilFirstError(
+		func() error { return p.InKeys.ExportShared(dest) },
+		func() error { return p.OutKeys.ExportShared(dest) },
+	)
+}
+
+func (p *KeyIOPack) ImportShared(src string) (err error) {
+	return utils.UntilFirstError(
+		func() error { return p.InKeys.ImportShared(src) },
+		func() error { return p.OutKeys.ImportShared(src) },
+	)
+}
+
 func (obj *KeyIOPack) Close() {
 	safeClose(obj.InKeys)
 	safeClose(obj.OutKeys)
@@ -75,12 +135,12 @@ func (obj *KeyIOPack) Close() {
 
 var Packs = map[uuid.UUID]*KeyIOPack{}
 
-func ManageKeyPack(packId uuid.UUID) (err error) {
+func ManageKeyPack(packId uuid.UUID, fill bool) (err error) {
 	if _, ok := Packs[packId]; ok {
 		return nil
 	}
 
-	if pack, err := NewKeyIOPack(packId); err != nil {
+	if pack, err := NewKeyIOPack(packId, fill); err != nil {
 		return err
 	} else {
 		Packs[packId] = pack
@@ -109,12 +169,31 @@ func ExportSharedKeys(packId uuid.UUID, dest string) (err error) {
 	}
 	packageFile.Close()
 
-	pack.InKeys.idKey.SaveTo(filepath.Join(dest, PACK_PREFIX_OUT+"-"+PACK_PREFIX_ID_KEY))
-	pack.InKeys.payloadKey.SaveTo(filepath.Join(dest, PACK_PREFIX_OUT+"-"+PACK_PREFIX_PAYLOAD_KEY))
-	pack.OutKeys.idKey.SaveTo(filepath.Join(dest, PACK_PREFIX_IN+"-"+PACK_PREFIX_ID_KEY))
-	pack.OutKeys.payloadKey.SaveTo(filepath.Join(dest, PACK_PREFIX_IN+"-"+PACK_PREFIX_PAYLOAD_KEY))
+	return pack.ExportShared(dest)
+}
 
-	return
+func ImportSharedKeys(src string) (packId uuid.UUID, err error) {
+	packageFile, err := filestorage.NewFile(filepath.Join(src, "_package_"), false, 0o600)
+	if err != nil {
+		return packId, err
+	}
+	packId = uuid.UUID{}
+
+	_, err = packageFile.ReadAt(packId[:], 0)
+	if err != nil {
+		return packId, err
+	}
+	packageFile.Close()
+
+	if _, ok := Packs[packId]; ok {
+		return packId, nil
+	}
+
+	if err = ManageKeyPack(packId, false); err != nil {
+		return packId, err
+	}
+	err = Packs[packId].ImportShared(src)
+	return packId, err
 }
 
 func TryDecodePackId(idKeyPos int64, encId []byte) (id uuid.UUID, ok bool) {
@@ -125,7 +204,7 @@ func TryDecodePackId(idKeyPos int64, encId []byte) (id uuid.UUID, ok bool) {
 	for id := range Packs {
 		copy(tmpEncId, encId)
 
-		_, err := Packs[id].InKeys.idKey.ReadAt(key, idKeyPos)
+		_, err := Packs[id].InKeys.IdKey.ReadAt(key, idKeyPos)
 
 		if err == nil && quartzSymmetric.Decode(tmpEncId, key) == nil && utils.AreSlicesEqual(tmpEncId, id[:]) {
 			return id, true

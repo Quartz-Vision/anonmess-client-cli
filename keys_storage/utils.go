@@ -13,9 +13,13 @@ const PACK_PREFIX_OUT = "out"
 const PACK_PREFIX_ID_KEY = "id"
 const PACK_PREFIX_PAYLOAD_KEY = "data"
 
+func keyFileName(prefixes ...string) (name string) {
+	return strings.Join(prefixes, "-")
+}
+
 // Returns the path in context of the app data dir
 func keyPath(packId uuid.UUID, prefixes ...string) string {
-	return filestorage.DataPath(settings.Config.KeysStorageDefaultDirName, packId.String(), strings.Join(prefixes, "-"))
+	return filestorage.DataPath(settings.Config.KeysStorageDefaultDirName, packId.String(), keyFileName(prefixes...))
 }
 
 func safeClose(obj Closable) {

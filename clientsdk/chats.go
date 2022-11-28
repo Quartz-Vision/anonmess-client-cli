@@ -19,7 +19,7 @@ type Chat struct {
 
 func (c *Client) ManageChat(chat *Chat) (err error) {
 	err = utils.UntilFirstError(
-		func() error { return keysstorage.ManageKeyPack(chat.Id) },
+		func() error { return keysstorage.ManageKeyPack(chat.Id, true) },
 		func() error {
 			return c.db.Update(func(txn *badger.Txn) error {
 				e := badger.NewEntry(chat.Id[:], []byte(chat.Name))
@@ -41,6 +41,20 @@ func (c *Client) ManageChat(chat *Chat) (err error) {
 func (c *Client) CreateChat(name string) (chat *Chat, err error) {
 	chat = &Chat{
 		Id:   uuid.New(),
+		Name: name,
+	}
+
+	return chat, c.ManageChat(chat)
+}
+
+func (c *Client) ImportSharedChat(src string, name string) (chat *Chat, err error) {
+	chatId, err := keysstorage.ImportSharedKeys(src)
+	if err != nil {
+		return nil, err
+	}
+
+	chat = &Chat{
+		Id:   chatId,
 		Name: name,
 	}
 
@@ -81,7 +95,7 @@ func (c *Client) AddChatFromKeys(chatId uuid.UUID, name string) (chat *Chat, err
 		return chat, nil
 	}
 
-	if err := keysstorage.ManageKeyPack(chatId); err != nil {
+	if err := keysstorage.ManageKeyPack(chatId, false); err != nil {
 		return nil, err
 	}
 

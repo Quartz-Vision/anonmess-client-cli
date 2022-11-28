@@ -36,7 +36,7 @@ func chat(client *clientsdk.Client, args ...string) bool {
 		if err != nil {
 			fmt.Printf("Error creating a new chat: %s\n", err)
 		} else {
-			fmt.Printf("The new chat's id is: %s\n", chat.Id.String())
+			fmt.Printf("The new chats id is: %s\n", chat.Id.String())
 		}
 	case "list":
 		fmt.Println("Your chats:")
@@ -59,21 +59,16 @@ func chat(client *clientsdk.Client, args ...string) bool {
 			fmt.Printf("Error parsing uuid: %s\n", err)
 		} else {
 			if chat, ok := client.Chats[id]; ok {
-				chat.ExportKeysForShare()
+				_ = chat.ExportKeysForShare()
 			} else {
 				fmt.Printf("Chat %s doesn't exist\n", args[1])
 			}
 		}
 	case "connect":
-		if id, err := uuid.Parse(args[1]); err != nil {
-			fmt.Printf("Error parsing uuid: %s\n", err)
+		if chat, err := client.ImportSharedChat(args[1], args[2]); err != nil {
+			fmt.Printf("Error importing chat: %v\n", err.Error())
 		} else {
-			if chat, ok := client.Chats[id]; ok {
-				currentChat = chat
-			} else {
-				currentChat = nil
-				fmt.Printf("Chat %s doesn't exist\n", args[1])
-			}
+			fmt.Printf("The new chats id is: %s\n", chat.Id.String())
 		}
 	}
 

@@ -56,8 +56,10 @@ func (b *BufferedFile) Seek(offset int64, whence int) (ret int64, err error) {
 	return b.file.Seek(offset, whence)
 }
 
-func (b *BufferedFile) Write(_ []byte) (nWritten int, err error) {
-	panic("not implemented") // TODO: Implement
+func (b *BufferedFile) Write(data []byte) (nWritten int64, err error) {
+	nWritten, err = b.file.Write(data)
+	b.currentPostion = POS_REWIND
+	return nWritten, err
 }
 
 func (b *BufferedFile) WriteAt(data []byte, offset int64) (nWritten int64, err error) {
@@ -86,6 +88,27 @@ func (b *BufferedFile) Append(data []byte) (pos int64, err error) {
 	}
 
 	return pos, err
+}
+
+func (b *BufferedFile) TRead(m func(txn Readable) (err error)) (err error) {
+	err = b.file.TRead(m)
+	return err
+}
+
+func (b *BufferedFile) TWrite(m func(txn Writable) (err error)) (err error) {
+	err = b.file.TWrite(m)
+	b.currentPostion = POS_REWIND
+	return err
+}
+
+func (b *BufferedFile) TReadWrite(m func(txn Editable) (err error)) (err error) {
+	err = b.file.TReadWrite(m)
+	b.currentPostion = POS_REWIND
+	return err
+}
+
+func (b *BufferedFile) PipeTo(dest File, chunkSize int64) (err error) {
+	return b.file.PipeTo(dest, chunkSize)
 }
 
 func (b *BufferedFile) Size() (length int64, err error) {
