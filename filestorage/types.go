@@ -23,8 +23,13 @@ type Editable interface {
 	Writable
 }
 
+type Freable interface {
+	Trunc() (err error)
+}
+
 type File interface {
 	Editable
+	Freable
 
 	TRead(m func(txn Readable) (err error)) (err error)
 	TWrite(m func(txn Writable) (err error)) (err error)

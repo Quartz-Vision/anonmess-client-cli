@@ -28,14 +28,20 @@ func NewBufferedFile(file File, bufferSize int64) (b *BufferedFile, err error) {
 
 	return b, nil
 }
+func (b *BufferedFile) Trunc() (err error) {
+	err = b.file.Trunc()
+	b.currentPostion = POS_REWIND
+	return err
+}
 func (b *BufferedFile) ReadAt(data []byte, offset int64) (nRead int64, err error) {
 	relativePos := offset - b.currentPostion
 	length := int64(len(data))
 
+	// What this checks:
 	// offset >= b.currentPostion && (offset + length) <= (b.BufferSize + b.currentPostion)
-	// -b.currentPostion =>
+	// -b.currentPostion ==>
 	// offset - b.currentPostion >= 0 && (offset + length - b.currentPostion) <= b.BufferSize
-	// relativePos = offset - b.currentPostion =>
+	// relativePos = offset - b.currentPostion ==>
 	// relativePos >= 0 && (relativePos+length) <= b.BufferSize
 	if b.currentPostion != POS_REWIND && relativePos >= 0 && (relativePos+length) <= b.BufferSize {
 		copy(data, b.buf[relativePos:])

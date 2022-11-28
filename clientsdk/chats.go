@@ -18,22 +18,22 @@ type Chat struct {
 }
 
 func (c *Client) ManageChat(chat *Chat) (err error) {
-	err = utils.UntilFirstError(
-		func() error { return keysstorage.ManageKeyPack(chat.Id, true) },
-		func() error {
-			return c.db.Update(func(txn *badger.Txn) error {
+	utils.UntilErrorPointer(
+		&err,
+		func() { _, err = keysstorage.ManageKeyPack(chat.Id) },
+		func() {
+			err = c.db.Update(func(txn *badger.Txn) error {
 				e := badger.NewEntry(chat.Id[:], []byte(chat.Name))
 				err := txn.SetEntry(e)
 				return err
 			})
 		},
+		func() {
+			chat.client = c
+			c.Chats[chat.Id] = chat
+			c.anoncastClient.Listen(chat.Id, EVENT_RAW_MESSAGE, c.rawMessagesHandler)
+		},
 	)
-	if err != nil {
-		return err
-	}
-
-	c.Chats[chat.Id] = chat
-	c.anoncastClient.Listen(chat.Id, EVENT_RAW_MESSAGE, c.rawMessagesHandler)
 
 	return err
 }
@@ -44,17 +44,22 @@ func (c *Client) CreateChat(name string) (chat *Chat, err error) {
 		Name: name,
 	}
 
-	return chat, c.ManageChat(chat)
+	err = c.ManageChat(chat)
+	if err == nil {
+		keys, _ := keysstorage.GetKeyPack(chat.Id)
+		err = keys.GenerateKey(settings.Config.KeysStartSizeB)
+	}
+	return chat, err
 }
 
 func (c *Client) ImportSharedChat(src string, name string) (chat *Chat, err error) {
-	chatId, err := keysstorage.ImportSharedKeys(src)
+	keys, err := keysstorage.ManageSharedKeyPack(src)
 	if err != nil {
 		return nil, err
 	}
 
 	chat = &Chat{
-		Id:   chatId,
+		Id:   keys.PackId,
 		Name: name,
 	}
 
@@ -90,23 +95,9 @@ func (c *Client) UpdateChatsList() (err error) {
 	return err
 }
 
-func (c *Client) AddChatFromKeys(chatId uuid.UUID, name string) (chat *Chat, err error) {
-	if chat, ok := c.Chats[chatId]; ok {
-		return chat, nil
-	}
-
-	if err := keysstorage.ManageKeyPack(chatId, false); err != nil {
-		return nil, err
-	}
-
-	chat = &Chat{
-		Id:   chatId,
-		Name: name,
-	}
-	c.ManageChat(chat)
-	return chat, nil
-}
-
 func (ch *Chat) ExportKeysForShare() (err error) {
-	return keysstorage.ExportSharedKeys(ch.Id, filepath.Join(settings.Config.AppDownloadsDirPath, ch.Id.String()))
+	if keys, ok := keysstorage.GetKeyPack(ch.Id); ok {
+		return keys.ExportShared(filepath.Join(settings.Config.AppDownloadsDirPath, ch.Id.String()))
+	}
+	return
 }

@@ -69,7 +69,7 @@ func InitFileManager() (err error) {
 // Creates a managed file.
 //
 // Custom flags are unawailable here since the nature of the manager requieres the access methods to be as uniform as possible.
-func NewFile(filePath string, truncate bool, perm fs.FileMode) (file *ManagedFile, err error) {
+func NewFile(filePath string, perm fs.FileMode) (file *ManagedFile, err error) {
 	err = os.MkdirAll(path.Dir(filePath), os.ModePerm)
 
 	f := &ManagedFile{
@@ -83,10 +83,6 @@ func NewFile(filePath string, truncate bool, perm fs.FileMode) (file *ManagedFil
 		rwmutex:       sync.RWMutex{},
 		wakingMutex:   sync.Mutex{},
 		wakingChannel: make(chan bool, 1),
-	}
-
-	if truncate && err == nil {
-		err = f.trunc()
 	}
 
 	return f, err
@@ -138,7 +134,7 @@ func (f *ManagedFile) wake() (err error) {
 }
 
 // completely safe truncation method
-func (f *ManagedFile) trunc() (err error) {
+func (f *ManagedFile) Trunc() (err error) {
 	f.rwmutex.Lock()
 	if f.opened {
 		f.file.Close()
@@ -154,7 +150,6 @@ func (f *ManagedFile) trunc() (err error) {
 	f.rwmutex.Unlock()
 	return err
 }
-
 func (f *ManagedFile) ReadAt(b []byte, offset int64) (nRead int64, err error) {
 	f.rwmutex.RLock()
 
