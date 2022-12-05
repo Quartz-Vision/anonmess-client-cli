@@ -8,11 +8,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const PACK_PREFIX_IN = "in"
-const PACK_PREFIX_OUT = "out"
-const PACK_PREFIX_ID_KEY = "id"
-const PACK_PREFIX_PAYLOAD_KEY = "data"
-
 func keyFileName(prefixes ...string) (name string) {
 	return strings.Join(prefixes, "-")
 }

@@ -96,7 +96,7 @@ func Init() (err error) {
 		fmt.Printf("\n[%s] >>> %v\n> ", msg.Chat.Name, msg.Text)
 	}))
 	client.ListenClient(clientsdk.EVENT_ERROR, client.WrapErrorHandler(func(err *anoncastsdk.ClientErrorMessage) {
-		fmt.Printf("\n{|ERROR|} >>> %v\n> ", err.Details)
+		fmt.Printf("\n{|ERROR|} >>> %v, %v\n> ", err.Details, err.OriginalError)
 		if err.Code == anoncastsdk.ERROR_FATAL {
 			fmt.Println("Trying to connect in 5s")
 			time.Sleep(5 * time.Second)

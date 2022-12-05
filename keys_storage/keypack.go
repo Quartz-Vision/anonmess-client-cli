@@ -3,59 +3,18 @@ package keysstorage
 import (
 	"path/filepath"
 	"quartzvision/anonmess-client-cli/filestorage"
-	"quartzvision/anonmess-client-cli/settings"
 	"quartzvision/anonmess-client-cli/utils"
 
 	"github.com/google/uuid"
 )
 
-type Key struct {
-	*KeyBuffer
-	prefix            string
-	packPrefix        string
-	packSharingPrefix string
-}
-
-func NewKey(packId uuid.UUID, keyPrefix string, packPrefix string, packSharingPrefix string) (key *Key, err error) {
-	kb, err := NewKeyBuffer(keyPath(packId, packPrefix, keyPrefix))
-	if err != nil {
-		return nil, err
-	}
-
-	return &Key{
-		KeyBuffer:         kb,
-		prefix:            keyPrefix,
-		packPrefix:        packPrefix,
-		packSharingPrefix: packSharingPrefix,
-	}, nil
-}
-
-func (k *Key) ExportShared(dest string) (err error) {
-	var file filestorage.File
-
-	return utils.UntilErrorPointer(
-		&err,
-		func() {
-			file, err = filestorage.NewFile(filepath.Join(dest, keyFileName(k.packSharingPrefix, k.prefix)), 0o600)
-		},
-		func() { err = file.Trunc() },
-		func() { err = k.PipeTo(file, settings.Config.KeysBufferSizeB) },
-		func() { file.Close() },
-	)
-}
-func (k *Key) ImportShared(src string) (err error) {
-	var file filestorage.File
-
-	return utils.UntilErrorPointer(
-		&err,
-		func() {
-			file, err = filestorage.NewFile(filepath.Join(src, keyFileName(k.packPrefix, k.prefix)), 0o600)
-		},
-		func() { err = file.PipeTo(k, settings.Config.KeysBufferSizeB) },
-		func() { file.Close() },
-	)
-}
-
+const (
+	PACK_PREFIX_IN          = "in"
+	PACK_PREFIX_OUT         = "out"
+	PACK_PREFIX_ID_KEY      = "id"
+	PACK_PREFIX_POS         = "pos"
+	PACK_PREFIX_PAYLOAD_KEY = "data"
+)
 const (
 	PACK_ID_KEY = iota
 	PACK_PAYLOAD_KEY
@@ -76,20 +35,29 @@ var keyPrefixes = [PACK_LEN][2]string{
 }
 
 type keymapping [PACK_LEN]*Key
+type posmapping [PACK_BASE_LEN]*KeyPosition
 
 type KeyPack struct {
-	PackId uuid.UUID
-	Keys   keymapping
+	PackId      uuid.UUID
+	Keys        keymapping
+	KeyPostions posmapping
 }
 
 func newKeyPack(packId uuid.UUID) (keyPack *KeyPack, err error) {
 	keyPack = &KeyPack{
-		PackId: packId,
-		Keys:   keymapping{},
+		PackId:      packId,
+		Keys:        keymapping{},
+		KeyPostions: posmapping{},
 	}
 
 	for i := range keyPack.Keys {
 		keyPack.Keys[i], err = NewKey(packId, keyPrefixes[i][1], keyPrefixes[i][0], keyPrefixes[(i+PACK_BASE_LEN)%PACK_LEN][0])
+		if err != nil {
+			return nil, err
+		}
+	}
+	for i := range keyPack.KeyPostions {
+		keyPack.KeyPostions[i], err = NewKeyPosition(packId, keyPrefixes[i][1], keyPrefixes[i][0])
 		if err != nil {
 			return nil, err
 		}

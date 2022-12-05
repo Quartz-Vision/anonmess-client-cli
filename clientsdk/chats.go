@@ -20,7 +20,12 @@ type Chat struct {
 func (c *Client) ManageChat(chat *Chat) (err error) {
 	utils.UntilErrorPointer(
 		&err,
-		func() { _, err = keysstorage.ManageKeyPack(chat.Id) },
+		func() {
+			_, err = keysstorage.ManageKeyPack(chat.Id)
+			if err == keysstorage.ErrPackageExists {
+				err = nil
+			}
+		},
 		func() {
 			err = c.db.Update(func(txn *badger.Txn) error {
 				e := badger.NewEntry(chat.Id[:], []byte(chat.Name))

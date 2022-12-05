@@ -1,9 +1,13 @@
 package utils
 
-import "unsafe"
+import (
+	"unsafe"
+)
 
 func XorSlices(a []byte, b []byte) {
 	dataLen := uint(len(a))
+	a = a[:len(b)]
+	b = b[:dataLen]
 	chunksCount := dataLen >> 3
 
 	if chunksCount != 0 {
@@ -20,8 +24,17 @@ func XorSlices(a []byte, b []byte) {
 	}
 }
 
+func ProcessSlices(dest []byte, op func(a []byte, b []byte), a []byte, b []byte) (res []byte) {
+	copy(dest, a)
+	op(dest, b)
+	return dest
+}
+
+// Doesn't check the lengths (takes the smaller)
 func AreSlicesEqual(a []byte, b []byte) (ok bool) {
 	dataLen := uint(len(a))
+	a = a[:len(b)]
+	b = b[:dataLen]
 	chunksCount := dataLen >> 3
 
 	if chunksCount != 0 {

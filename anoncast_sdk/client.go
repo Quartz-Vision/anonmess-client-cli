@@ -149,12 +149,13 @@ func (c *Client) Start() (err error) {
 		}
 
 		pack := dataPackage{event: c.Manage(&events.Event{})}
-		if err := pack.UnmarshalBinary(packageBuf); err != nil {
+		if err := pack.UnmarshalBinary(packageBuf); err == nil {
+			c.Emit(pack.channelId, pack.event.Type, pack.event.Data)
+		} else if err != ErrKeyPackIdDecodeFailed {
 			c.emitError(ERROR_BROKEN_PACKAGE_RECV, "The client got a broken package", err)
 			continue
 		}
 
-		c.Emit(pack.channelId, pack.event.Type, pack.event.Data)
 	}
 
 	c.Stop()
