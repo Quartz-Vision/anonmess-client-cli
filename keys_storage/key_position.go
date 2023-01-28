@@ -7,6 +7,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// KeyPosition takes care for accessing and storing current key position, that can be used for encoding/decoding
+
 type KeyPosition struct {
 	file filestorage.File
 }
@@ -28,6 +30,8 @@ func NewKeyPosition(packId uuid.UUID, keyPrefix string, packPrefix string) (pos 
 	)
 }
 
+// Takes the size of data you want to de/encode and returns the position,
+// from which you can use the reserved key part
 func (p *KeyPosition) Take(dataSize int64) (pos int64, err error) {
 	return pos, p.file.TReadWrite(func(txn filestorage.Editable) (err error) {
 		data := make([]byte, utils.INT_MAX_SIZE)

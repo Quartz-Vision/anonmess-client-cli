@@ -25,6 +25,7 @@ func NewKeyBuffer(path string) (b *KeyBuffer, err error) {
 	return b, err
 }
 
+// Generates new key parts
 func (b *KeyBuffer) GenerateKey(length int64) (err error) {
 	if rest := length % b.BufferSize; rest != 0 {
 		if key, err := random.GenerateRandomBytes(rest); err != nil {

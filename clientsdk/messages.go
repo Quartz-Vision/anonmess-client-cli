@@ -33,8 +33,8 @@ func (r *RawMessage) UnmarshalBinary(data []byte) (err error) {
 }
 
 type ChatMessage struct {
-	Chat *Chat
-	Text string
+	Chat *Chat  `json:"chat"`
+	Text string `json:"text"`
 }
 
 type MessageHandlerFn func(msg *ChatMessage)

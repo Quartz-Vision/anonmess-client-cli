@@ -1,7 +1,7 @@
 package app
 
 import (
-	"quartzvision/anonmess-client-cli/cli"
+	"quartzvision/anonmess-client-cli/clientserver"
 	"quartzvision/anonmess-client-cli/filestorage"
 	keysstorage "quartzvision/anonmess-client-cli/keys_storage"
 	"quartzvision/anonmess-client-cli/settings"
@@ -13,6 +13,7 @@ func Init() error {
 		settings.Init,
 		filestorage.InitFileManager,
 		keysstorage.Init,
-		cli.Init,
+		// cli.Init,
+		clientserver.Init,
 	)
 }

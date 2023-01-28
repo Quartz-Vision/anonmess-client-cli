@@ -11,6 +11,7 @@ import (
 var packs = map[uuid.UUID]*KeyPack{}
 var ErrPackageExists = errors.New("this package already exists")
 
+// Creates a new key pack and stores it, so that can be easyli accessed later
 func ManageKeyPack(packId uuid.UUID) (pack *KeyPack, err error) {
 	pack, ok := packs[packId]
 	if !ok {
@@ -56,6 +57,7 @@ func GetKeyPack(packId uuid.UUID) (pack *KeyPack, ok bool) {
 	return pack, ok
 }
 
+// Returns right pack id, using its encoded variant
 func TryDecodePackId(idKeyPos int64, encId []byte) (id uuid.UUID, ok bool) {
 	idLen := int64(len(encId))
 	tmpEncId := make([]byte, idLen)

@@ -55,10 +55,12 @@ func (c *Client) StartConnection() (err error) {
 	return c.anoncastClient.Start()
 }
 
+// Listen for messages in ClientEventsChannel (a public channel for api)
 func (c *Client) ListenClient(etype events.EventType, handler events.EventHandlerFn) {
 	c.Listen(c.ClientEventsChannel, etype, handler)
 }
 
 func (c *Client) Close() {
+	c.anoncastClient.Stop()
 	c.db.Close()
 }

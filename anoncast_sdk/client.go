@@ -53,10 +53,12 @@ func New() *Client {
 	}
 }
 
+// Listen to the main client channel for API interactions
 func (c *Client) ListenClient(etype events.EventType, handler events.EventHandlerFn) {
 	c.Listen(c.ClientEventsChannel, etype, handler)
 }
 
+// Adds new events to the sending queue. They will be sent to the server
 func (c *Client) SendEvent(channelId uuid.UUID, etype events.EventType, data any) {
 	c.eventsToSend.Push(&dataPackage{
 		channelId: channelId,
@@ -134,20 +136,22 @@ func (c *Client) Start() (err error) {
 			break
 		}
 
+		// decode package size
 		packageSize, _ := utils.BytesToInt64(sizeRawBuf)
 		if packageSize <= 0 || packageSize >= MAX_PACKAGE_SIZE_B {
 			c.emitError(ERROR_BROKEN_PACKAGE_RECV, "The client got a broken package", err)
 			continue
 		}
+
+		// make a buffer with the whole package
 		packageBuf := make([]byte, packageSize+int64(len(sizeRawBuf)))
-
 		copy(packageBuf, sizeRawBuf)
-
 		if _, err := io.ReadFull(c.conn, packageBuf[len(sizeRawBuf):]); err != nil {
 			c.lastError = err
 			break
 		}
 
+		// decode the package (event) and emit it
 		pack := dataPackage{event: c.Manage(&events.Event{})}
 		if err := pack.UnmarshalBinary(packageBuf); err == nil {
 			c.Emit(pack.channelId, pack.event.Type, pack.event.Data)

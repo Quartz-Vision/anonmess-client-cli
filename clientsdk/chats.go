@@ -11,12 +11,15 @@ import (
 )
 
 type Chat struct {
-	Id   uuid.UUID
-	Name string
+	Id   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
 
 	client *Client
 }
 
+// lets the chat know it belong to this client
+// also adds the chat to the db and makes some preinitializations for it
+// like setting up keys, listeners etc
 func (c *Client) ManageChat(chat *Chat) (err error) {
 	utils.UntilErrorPointer(
 		&err,
@@ -57,6 +60,7 @@ func (c *Client) CreateChat(name string) (chat *Chat, err error) {
 	return chat, err
 }
 
+// Imports keys, assigning them to a new chat with the name
 func (c *Client) ImportSharedChat(src string, name string) (chat *Chat, err error) {
 	keys, err := keysstorage.ManageSharedKeyPack(src)
 	if err != nil {
@@ -71,6 +75,7 @@ func (c *Client) ImportSharedChat(src string, name string) (chat *Chat, err erro
 	return chat, c.ManageChat(chat)
 }
 
+// updates the chats list for the client from the DB
 func (c *Client) UpdateChatsList() (err error) {
 	err = c.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
@@ -100,6 +105,7 @@ func (c *Client) UpdateChatsList() (err error) {
 	return err
 }
 
+// exports the chat keys so that they can be imported
 func (ch *Chat) ExportKeysForShare() (err error) {
 	if keys, ok := keysstorage.GetKeyPack(ch.Id); ok {
 		return keys.ExportShared(filepath.Join(settings.Config.AppDownloadsDirPath, ch.Id.String()))

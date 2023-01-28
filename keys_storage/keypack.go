@@ -8,6 +8,10 @@ import (
 	"github.com/google/uuid"
 )
 
+// KeyPack contains all the keys needed for a chat - id key, payload key etc. Also their positions
+// It can be easily extended, you just need to add new constants before `PACK_BASE_LEN`
+// and then add new keys to the `keyPrefixes``
+
 const (
 	PACK_PREFIX_IN          = "in"
 	PACK_PREFIX_OUT         = "out"
@@ -66,6 +70,7 @@ func newKeyPack(packId uuid.UUID) (keyPack *KeyPack, err error) {
 	return keyPack, err
 }
 
+// Helps to get chatId of a shared pack
 func getSharedPackId(src string) (packId uuid.UUID, err error) {
 	packId = uuid.UUID{}
 	var packageFile filestorage.File
@@ -90,6 +95,7 @@ func importSharedKeyPack(packId uuid.UUID, src string) (keyPack *KeyPack, err er
 	return keyPack, err
 }
 
+// generates new key part of the same size for all of the keys
 func (p *KeyPack) GenerateKey(keySize int64) (err error) {
 	for i := range p.Keys {
 		err = p.Keys[i].GenerateKey(keySize)
