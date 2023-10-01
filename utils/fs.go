@@ -1,4 +1,4 @@
-package filestorage
+package utils
 
 import (
 	"path/filepath"

@@ -3,7 +3,7 @@ package clientsdk
 import (
 	anoncastsdk "quartzvision/anonmess-client-cli/anoncast_sdk"
 	"quartzvision/anonmess-client-cli/events"
-	"quartzvision/anonmess-client-cli/filestorage"
+	"quartzvision/anonmess-client-cli/utils"
 
 	"github.com/dgraph-io/badger/v3"
 	"github.com/google/uuid"
@@ -20,7 +20,7 @@ type Client struct {
 }
 
 func New() *Client {
-	db, _ := badger.Open(badger.DefaultOptions(filestorage.DataPath("db")))
+	db, _ := badger.Open(badger.DefaultOptions(utils.DataPath("db")))
 
 	client := &Client{
 		ClientEventsChannel: uuid.New(),

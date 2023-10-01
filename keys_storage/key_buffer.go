@@ -2,22 +2,23 @@ package keysstorage
 
 import (
 	"quartzvision/anonmess-client-cli/crypto/random"
-	"quartzvision/anonmess-client-cli/filestorage"
 	"quartzvision/anonmess-client-cli/settings"
+
+	"github.com/Quartz-Vision/gofile"
 )
 
 const POS_REWIND = -1
 
 type KeyBuffer struct {
-	*filestorage.BufferedFile
+	*gofile.BufferedFile
 }
 
 func NewKeyBuffer(path string) (b *KeyBuffer, err error) {
-	file, err := filestorage.NewFile(path, 0o600)
+	file, err := gofile.NewFile(path, 0o600)
 	if err != nil {
 		return nil, err
 	}
-	bf, err := filestorage.NewBufferedFile(file, settings.Config.KeysBufferSizeB)
+	bf, err := gofile.NewBufferedFile(file, settings.Config.KeysBufferSizeB)
 
 	b = &KeyBuffer{
 		BufferedFile: bf,

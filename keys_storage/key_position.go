@@ -1,7 +1,7 @@
 package keysstorage
 
 import (
-	"quartzvision/anonmess-client-cli/filestorage"
+	"github.com/Quartz-Vision/gofile"
 	"quartzvision/anonmess-client-cli/utils"
 
 	"github.com/google/uuid"
@@ -10,16 +10,16 @@ import (
 // KeyPosition takes care for accessing and storing current key position, that can be used for encoding/decoding
 
 type KeyPosition struct {
-	file filestorage.File
+	file gofile.File
 }
 
 func NewKeyPosition(packId uuid.UUID, keyPrefix string, packPrefix string) (pos *KeyPosition, err error) {
-	var file filestorage.File
+	var file gofile.File
 
 	return pos, utils.UntilErrorPointer(
 		&err,
 		func() {
-			file, err = filestorage.NewFile(keyPath(packId, packPrefix, keyPrefix, PACK_PREFIX_POS), 0o600)
+			file, err = gofile.NewFile(keyPath(packId, packPrefix, keyPrefix, PACK_PREFIX_POS), 0o600)
 		},
 		func() { _, err = file.Write(utils.Int64ToBytes(0)) },
 		func() {
@@ -33,7 +33,7 @@ func NewKeyPosition(packId uuid.UUID, keyPrefix string, packPrefix string) (pos 
 // Takes the size of data you want to de/encode and returns the position,
 // from which you can use the reserved key part
 func (p *KeyPosition) Take(dataSize int64) (pos int64, err error) {
-	return pos, p.file.TReadWrite(func(txn filestorage.Editable) (err error) {
+	return pos, p.file.TReadWrite(func(txn gofile.Editable) (err error) {
 		data := make([]byte, utils.INT_MAX_SIZE)
 		_, err = txn.ReadAt(data, 0)
 		if err != nil {

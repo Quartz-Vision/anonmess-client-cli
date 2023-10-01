@@ -2,13 +2,13 @@ package keysstorage
 
 import (
 	"os"
-	"quartzvision/anonmess-client-cli/filestorage"
 	"quartzvision/anonmess-client-cli/settings"
+	"quartzvision/anonmess-client-cli/utils"
 )
 
 func Init() (err error) {
 	return os.MkdirAll(
-		filestorage.DataPath(settings.Config.KeysStorageDefaultDirName),
+		utils.DataPath(settings.Config.KeysStorageDefaultDirName),
 		os.ModePerm,
 	)
 }

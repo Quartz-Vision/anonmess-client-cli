@@ -2,8 +2,9 @@ package keysstorage
 
 import (
 	"path/filepath"
-	"quartzvision/anonmess-client-cli/filestorage"
 	"quartzvision/anonmess-client-cli/utils"
+
+	"github.com/Quartz-Vision/gofile"
 
 	"github.com/google/uuid"
 )
@@ -73,11 +74,11 @@ func newKeyPack(packId uuid.UUID) (keyPack *KeyPack, err error) {
 // Helps to get chatId of a shared pack
 func getSharedPackId(src string) (packId uuid.UUID, err error) {
 	packId = uuid.UUID{}
-	var packageFile filestorage.File
+	var packageFile gofile.File
 
 	utils.UntilErrorPointer(
 		&err,
-		func() { packageFile, err = filestorage.NewFile(filepath.Join(src, "_package_"), 0o600) },
+		func() { packageFile, err = gofile.NewFile(filepath.Join(src, "_package_"), 0o600) },
 		func() { _, err = packageFile.ReadAt(packId[:], 0) },
 		func() { packageFile.Close() },
 	)
@@ -107,11 +108,11 @@ func (p *KeyPack) GenerateKey(keySize int64) (err error) {
 }
 
 func (p *KeyPack) ExportShared(dest string) (err error) {
-	var packageFile filestorage.File
+	var packageFile gofile.File
 
 	return utils.UntilErrorPointer(
 		&err,
-		func() { packageFile, err = filestorage.NewFile(filepath.Join(dest, "_package_"), 0o600) },
+		func() { packageFile, err = gofile.NewFile(filepath.Join(dest, "_package_"), 0o600) },
 		func() { err = packageFile.Trunc() },
 		func() { _, err = packageFile.Write(p.PackId[:]) },
 		func() {

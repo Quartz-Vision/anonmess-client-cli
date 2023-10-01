@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/Quartz-Vision/golog"
 	"github.com/caarlos0/env/v6"
 	"github.com/joho/godotenv"
 )
@@ -43,20 +44,20 @@ func selectPath(path string, fallback string) (r string, err error) {
 	} else {
 		path, err := filepath.Abs(path)
 		if err != nil {
-			return r, ErrEnvParsing
+			return r, ErrEnvLoading
 		}
 		return path, nil
 	}
 }
 
-func Init() error {
+func init() {
 	userConfigDir, err := os.UserConfigDir()
 	if err != nil {
-		return err
+		golog.Error.Fatalln(err.Error())
 	}
 	userHomeDir, err := os.UserHomeDir()
 	if err != nil {
-		return err
+		golog.Error.Fatalln(err.Error())
 	}
 
 	configPaths := []string{
@@ -71,7 +72,7 @@ func Init() error {
 	}
 
 	if err := env.Parse(&Config); err != nil {
-		return ErrEnvParsing
+		golog.Error.Fatalln(err.Error())
 	}
 
 	// .ServerAddr
@@ -83,7 +84,7 @@ func Init() error {
 		filepath.Join(userHomeDir, "."+Config.AppName, Config.AppDataDefaultDirName),
 	)
 	if err != nil {
-		return err
+		golog.Error.Fatalln(err.Error())
 	}
 
 	// .AppDownloadsDirPath
@@ -92,19 +93,17 @@ func Init() error {
 		filepath.Join(userHomeDir, "Downloads", Config.AppName),
 	)
 	if err != nil {
-		return err
+		golog.Error.Fatalln(err.Error())
 	}
 
 	// .KeysBufferSizeB
 	if Config.KeysBufferSizeKB < 1 {
-		return ErrEnvParsing
+		golog.Error.Fatalln("env: KEYS_BUFFER_SIZE_KB can't less than 1")
 	}
 	Config.KeysBufferSizeB = Config.KeysBufferSizeKB << 10
 	// .KeysStartSizeB
 	if Config.KeysStartSizeMB < 1 {
-		return ErrEnvParsing
+		golog.Error.Fatalln("env: KEYS_START_SIZE_MB can't be less than 1")
 	}
 	Config.KeysStartSizeB = Config.KeysStartSizeMB << 20
-
-	return nil
 }

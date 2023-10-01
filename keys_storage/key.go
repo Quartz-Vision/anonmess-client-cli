@@ -2,9 +2,10 @@ package keysstorage
 
 import (
 	"path/filepath"
-	"quartzvision/anonmess-client-cli/filestorage"
 	"quartzvision/anonmess-client-cli/settings"
 	"quartzvision/anonmess-client-cli/utils"
+
+	"github.com/Quartz-Vision/gofile"
 
 	"github.com/google/uuid"
 )
@@ -31,12 +32,12 @@ func NewKey(packId uuid.UUID, keyPrefix string, packPrefix string, packSharingPr
 }
 
 func (k *Key) ExportShared(dest string) (err error) {
-	var file filestorage.File
+	var file gofile.File
 
 	return utils.UntilErrorPointer(
 		&err,
 		func() {
-			file, err = filestorage.NewFile(filepath.Join(dest, keyFileName(k.packSharingPrefix, k.prefix)), 0o600)
+			file, err = gofile.NewFile(filepath.Join(dest, keyFileName(k.packSharingPrefix, k.prefix)), 0o600)
 		},
 		func() { err = file.Trunc() },
 		func() { err = k.PipeTo(file, settings.Config.KeysBufferSizeB) },
@@ -44,12 +45,12 @@ func (k *Key) ExportShared(dest string) (err error) {
 	)
 }
 func (k *Key) ImportShared(src string) (err error) {
-	var file filestorage.File
+	var file gofile.File
 
 	return utils.UntilErrorPointer(
 		&err,
 		func() {
-			file, err = filestorage.NewFile(filepath.Join(src, keyFileName(k.packPrefix, k.prefix)), 0o600)
+			file, err = gofile.NewFile(filepath.Join(src, keyFileName(k.packPrefix, k.prefix)), 0o600)
 		},
 		func() { err = file.PipeTo(k, settings.Config.KeysBufferSizeB) },
 		func() { file.Close() },
