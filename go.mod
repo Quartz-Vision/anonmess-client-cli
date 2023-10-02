@@ -12,7 +12,6 @@ require (
 )
 
 require (
-	github.com/Quartz-Vision/goslice v1.0.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/dgraph-io/ristretto v0.1.1 // indirect
@@ -37,6 +36,7 @@ require (
 require (
 	github.com/Quartz-Vision/gocrypt v1.0.0
 	github.com/Quartz-Vision/gofile v1.0.2
+	github.com/Quartz-Vision/goslice v1.0.0
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/gobwas/ws v1.3.0
 	golang.org/x/sys v0.12.0 // indirect
