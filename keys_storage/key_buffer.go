@@ -1,9 +1,9 @@
 package keysstorage
 
 import (
-	"quartzvision/anonmess-client-cli/crypto/random"
 	"quartzvision/anonmess-client-cli/settings"
 
+	"github.com/Quartz-Vision/gocrypt/random"
 	"github.com/Quartz-Vision/gofile"
 )
 

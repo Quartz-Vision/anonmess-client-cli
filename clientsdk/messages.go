@@ -3,6 +3,8 @@ package clientsdk
 import (
 	"quartzvision/anonmess-client-cli/events"
 	"quartzvision/anonmess-client-cli/utils"
+
+	"github.com/Quartz-Vision/goslice"
 )
 
 var (
@@ -20,7 +22,7 @@ func (r *RawMessage) MarshalBinary() (data []byte, err error) {
 	textSizeEnc := utils.Int64ToBytes(int64(textSize))
 
 	data = make([]byte, len(textSizeEnc)+textSize)
-	utils.JoinSlices(data, textSizeEnc, []byte(r.Text))
+	goslice.Join(data, textSizeEnc, []byte(r.Text))
 
 	return data, nil
 }

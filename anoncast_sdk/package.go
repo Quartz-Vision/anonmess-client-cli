@@ -7,6 +7,7 @@ import (
 	keysstorage "quartzvision/anonmess-client-cli/keys_storage"
 	"quartzvision/anonmess-client-cli/utils"
 
+	"github.com/Quartz-Vision/goslice"
 	"github.com/google/uuid"
 )
 
@@ -93,16 +94,16 @@ func (p *dataPackage) MarshalBinary() (data []byte, err error) {
 	fmt.Printf("<<< Event size: %v\n", eventSize)
 	fmt.Printf("<<< Event dec frag: %v\n", eventEnc[:utils.INT_MAX_SIZE])
 
-	utils.XorSlices(channelId, idKey[:utils.UUID_SIZE])
-	utils.XorSlices(payloadKeyPosEnc, idKey[utils.UUID_SIZE:])
-	utils.XorSlices(eventSizeEnc, payloadKey[:eventSizeEncSize])
-	utils.XorSlices(eventEnc, payloadKey[eventSizeEncSize:])
+	goslice.Xor(channelId, idKey[:utils.UUID_SIZE])
+	goslice.Xor(payloadKeyPosEnc, idKey[utils.UUID_SIZE:])
+	goslice.Xor(eventSizeEnc, payloadKey[:eventSizeEncSize])
+	goslice.Xor(eventEnc, payloadKey[eventSizeEncSize:])
 
 	fmt.Printf("<<< Payload key pos enc frag: %v\n", payloadKeyPosEnc)
 	fmt.Printf("<<< Event enc frag: %v\n", eventEnc[:utils.INT_MAX_SIZE])
 	fmt.Printf("<<< Event payload key frag: %v\n", payloadKey[utils.INT_MAX_SIZE:utils.INT_MAX_SIZE*2])
 
-	utils.JoinSlices(
+	goslice.Join(
 		encodedData,
 		packageSizeEnc,
 		idKeyPosEnc,
@@ -162,7 +163,7 @@ func (p *dataPackage) UnmarshalBinary(data []byte) (err error) {
 		},
 		func() {
 			fmt.Printf(">>> Payload key pos enc frag: %v\n", data[:utils.INT_MAX_SIZE])
-			utils.ProcessSlices(tmpNum, utils.XorSlices, data[:utils.INT_MAX_SIZE], idKey)
+			goslice.SetResult(tmpNum, goslice.Xor, data[:utils.INT_MAX_SIZE], idKey)
 			payloadKeyPos, payloadKeyPosLen = utils.BytesToInt64(tmpNum)
 			data = data[payloadKeyPosLen:]
 
@@ -174,7 +175,7 @@ func (p *dataPackage) UnmarshalBinary(data []byte) (err error) {
 		func() {
 			fmt.Printf(">>> Payload key frag: %v\n", payloadKey[:utils.INT_MAX_SIZE])
 
-			utils.ProcessSlices(tmpNum, utils.XorSlices, data[:utils.INT_MAX_SIZE], payloadKey)
+			goslice.SetResult(tmpNum, goslice.Xor, data[:utils.INT_MAX_SIZE], payloadKey)
 			eventSize, eventSizeLen = utils.BytesToInt64(tmpNum)
 			data = data[eventSizeLen:]
 
@@ -186,7 +187,7 @@ func (p *dataPackage) UnmarshalBinary(data []byte) (err error) {
 		func() {
 			fmt.Printf(">>> Event enc frag: %v\n", data[:utils.INT_MAX_SIZE])
 			fmt.Printf(">>> Event payload key frag: %v\n", payloadKey[:utils.INT_MAX_SIZE])
-			utils.XorSlices(data[:eventSize], payloadKey[:eventSize])
+			goslice.Xor(data[:eventSize], payloadKey[:eventSize])
 			fmt.Printf(">>> Event dec frag: %v\n", data[:utils.INT_MAX_SIZE])
 			err = p.event.UnmarshalBinary(data[:eventSize])
 		},

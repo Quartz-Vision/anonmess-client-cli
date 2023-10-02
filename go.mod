@@ -8,11 +8,11 @@ require (
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/google/uuid v1.3.1
 	github.com/joho/godotenv v1.5.1
-	github.com/kudelskisecurity/crystals-go v0.0.0-20210705112123-14b89bfbcdc8
 	github.com/orcaman/concurrent-map/v2 v2.0.1
 )
 
 require (
+	github.com/Quartz-Vision/goslice v1.0.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/dgraph-io/ristretto v0.1.1 // indirect
@@ -35,9 +35,9 @@ require (
 )
 
 require (
+	github.com/Quartz-Vision/gocrypt v1.0.0
 	github.com/Quartz-Vision/gofile v1.0.2
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/gobwas/ws v1.3.0
-	golang.org/x/crypto v0.13.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
 )

@@ -3,10 +3,11 @@ package main_test
 import (
 	"fmt"
 	"quartzvision/anonmess-client-cli/app"
-	"quartzvision/anonmess-client-cli/crypto/random"
-	quartzSymmetric "quartzvision/anonmess-client-cli/crypto/symmetric"
 	keysstorage "quartzvision/anonmess-client-cli/keys_storage"
 	"testing"
+
+	"github.com/Quartz-Vision/gocrypt/random"
+	"github.com/Quartz-Vision/gocrypt/symmetric"
 )
 
 func BenchmarkSymmetricEncDec(b *testing.B) {
@@ -22,12 +23,12 @@ func BenchmarkSymmetricEncDec(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		err := quartzSymmetric.Encode(data, key)
+		err := symmetric.Encode(data, key)
 		if err != nil {
 			return
 		}
 
-		err = quartzSymmetric.Decode(data, key)
+		err = symmetric.Decode(data, key)
 		if err != nil {
 			return
 		}
