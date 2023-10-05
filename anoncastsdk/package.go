@@ -3,7 +3,6 @@ package anoncastsdk
 import (
 	"errors"
 	"fmt"
-	"quartzvision/anonmess-client-cli/events"
 	keysstorage "quartzvision/anonmess-client-cli/keys_storage"
 	"quartzvision/anonmess-client-cli/utils"
 
@@ -11,18 +10,19 @@ import (
 	"github.com/google/uuid"
 )
 
-type dataPackage struct {
-	channelId uuid.UUID
-	event     *events.Event
-
-	client *Client
+type DataPackage struct {
+	ChannelId uuid.UUID
+	Payload   []byte
 }
 
 var ErrNoKeyPack = errors.New("no key pack for the channel")
 
-func (p *dataPackage) MarshalBinary() (data []byte, err error) {
+func (p *DataPackage) MarshalBinary() (data []byte, err error) {
 	channelId := make([]byte, utils.UUID_SIZE)
-	copy(channelId, p.channelId[:])
+	copy(channelId, p.ChannelId[:])
+
+	payload := make([]byte, len(p.Payload))
+	copy(payload, p.Payload)
 
 	var (
 		keyPack              *keysstorage.KeyPack
@@ -31,44 +31,42 @@ func (p *dataPackage) MarshalBinary() (data []byte, err error) {
 		payloadKeyPos        int64
 		payloadKeyPosEnc     []byte
 		payloadKeyPosEncSize int
-		eventSize            int
-		eventSizeEnc         []byte
-		eventSizeEncSize     int
+		payloadSize          int
+		payloadSizeEnc       []byte
+		payloadSizeEncSize   int
 		idKey                []byte
 		payloadKey           []byte
-		eventEnc             []byte
 	)
 
 	utils.UntilErrorPointer(
 		&err,
 		// Key Pack
 		func() {
-			keyPack, ok = keysstorage.GetKeyPack(p.channelId)
+			keyPack, ok = keysstorage.GetKeyPack(p.ChannelId)
 			if !ok {
 				err = ErrNoKeyPack
 			}
 		},
 		// Event and Payload Key
 		func() {
-			eventEnc, err = p.event.MarshalBinary()
-			eventSize = len(eventEnc)
-			eventSizeEnc = utils.Int64ToBytes(int64(eventSize))
-			eventSizeEncSize = len(eventSizeEnc)
+			payloadSize = len(payload)
+			payloadSizeEnc = utils.Int64ToBytes(int64(payloadSize))
+			payloadSizeEncSize = len(payloadSizeEnc)
 		},
 		func() {
-			payloadKeyPos, err = keyPack.KeyPostions[keysstorage.PACK_PAYLOAD_KEY].Take(
-				int64(eventSize + eventSizeEncSize),
+			payloadKeyPos, err = keyPack.KeyPositions[keysstorage.PACK_PAYLOAD_KEY].Take(
+				int64(payloadSize + payloadSizeEncSize),
 			)
 			payloadKeyPosEnc = utils.Int64ToBytes(payloadKeyPos)
 			payloadKeyPosEncSize = len(payloadKeyPosEnc)
 		},
 		func() {
-			payloadKey = make([]byte, eventSize+eventSizeEncSize)
+			payloadKey = make([]byte, payloadSize+payloadSizeEncSize)
 			_, err = keyPack.Keys[keysstorage.PACK_OUT+keysstorage.PACK_PAYLOAD_KEY].ReadAt(payloadKey, payloadKeyPos)
 		},
 		// ID Key
 		func() {
-			idKeyPos, err = keyPack.KeyPostions[keysstorage.PACK_ID_KEY].Take(utils.UUID_SIZE + int64(payloadKeyPosEncSize))
+			idKeyPos, err = keyPack.KeyPositions[keysstorage.PACK_ID_KEY].Take(utils.UUID_SIZE + int64(payloadKeyPosEncSize))
 		},
 		func() {
 			idKey = make([]byte, utils.UUID_SIZE+payloadKeyPosEncSize)
@@ -82,7 +80,7 @@ func (p *dataPackage) MarshalBinary() (data []byte, err error) {
 
 	idKeyPosEnc := utils.Int64ToBytes(idKeyPos)
 
-	packageSize := len(idKeyPosEnc) + utils.UUID_SIZE + payloadKeyPosEncSize + eventSizeEncSize + eventSize
+	packageSize := len(idKeyPosEnc) + utils.UUID_SIZE + payloadKeyPosEncSize + payloadSizeEncSize + payloadSize
 	packageSizeEnc := utils.Int64ToBytes(int64(packageSize))
 
 	encodedData := make([]byte, len(packageSizeEnc)+packageSize)
@@ -91,16 +89,16 @@ func (p *dataPackage) MarshalBinary() (data []byte, err error) {
 	fmt.Printf("<<< Id key pos: %v\n", idKeyPos)
 	fmt.Printf("<<< Payload key frag: %v\n", payloadKey[:utils.INT_MAX_SIZE])
 	fmt.Printf("<<< Payload key pos: %v\n", payloadKeyPos)
-	fmt.Printf("<<< Event size: %v\n", eventSize)
-	fmt.Printf("<<< Event dec frag: %v\n", eventEnc[:utils.INT_MAX_SIZE])
+	fmt.Printf("<<< Event size: %v\n", payloadSize)
+	fmt.Printf("<<< Event dec frag: %v\n", payload[:utils.INT_MAX_SIZE])
 
 	goslice.Xor(channelId, idKey[:utils.UUID_SIZE])
 	goslice.Xor(payloadKeyPosEnc, idKey[utils.UUID_SIZE:])
-	goslice.Xor(eventSizeEnc, payloadKey[:eventSizeEncSize])
-	goslice.Xor(eventEnc, payloadKey[eventSizeEncSize:])
+	goslice.Xor(payloadSizeEnc, payloadKey[:payloadSizeEncSize])
+	goslice.Xor(payload, payloadKey[payloadSizeEncSize:])
 
 	fmt.Printf("<<< Payload key pos enc frag: %v\n", payloadKeyPosEnc)
-	fmt.Printf("<<< Event enc frag: %v\n", eventEnc[:utils.INT_MAX_SIZE])
+	fmt.Printf("<<< Event enc frag: %v\n", payload[:utils.INT_MAX_SIZE])
 	fmt.Printf("<<< Event payload key frag: %v\n", payloadKey[utils.INT_MAX_SIZE:utils.INT_MAX_SIZE*2])
 
 	goslice.Join(
@@ -109,8 +107,8 @@ func (p *dataPackage) MarshalBinary() (data []byte, err error) {
 		idKeyPosEnc,
 		channelId,
 		payloadKeyPosEnc,
-		eventSizeEnc,
-		eventEnc,
+		payloadSizeEnc,
+		payload,
 	)
 
 	return encodedData, nil
@@ -118,7 +116,7 @@ func (p *dataPackage) MarshalBinary() (data []byte, err error) {
 
 var ErrKeyPackIdDecodeFailed = errors.New("no such key pack")
 
-func (p *dataPackage) UnmarshalBinary(data []byte) (err error) {
+func (p *DataPackage) UnmarshalBinary(data []byte) (err error) {
 	_, packageSizeLen := utils.BytesToInt64(data)
 	data = data[packageSizeLen:]
 
@@ -129,7 +127,7 @@ func (p *dataPackage) UnmarshalBinary(data []byte) (err error) {
 
 	var ok bool
 	// Don't use utils for the error here since we need maximal speed
-	if p.channelId, ok = keysstorage.TryDecodePackId(idKeyPos, data[:utils.UUID_SIZE]); !ok {
+	if p.ChannelId, ok = keysstorage.TryDecodePackId(idKeyPos, data[:utils.UUID_SIZE]); !ok {
 		return ErrKeyPackIdDecodeFailed
 	}
 	data = data[utils.UUID_SIZE:]
@@ -138,8 +136,8 @@ func (p *dataPackage) UnmarshalBinary(data []byte) (err error) {
 		keyPack          *keysstorage.KeyPack
 		payloadKeyPos    int64
 		payloadKeyPosLen int
-		eventSize        int64
-		eventSizeLen     int
+		payloadSize      int64
+		payloadSizeLen   int
 		idKey            []byte
 		payloadKey       []byte
 		tmpNum           = make([]byte, utils.INT_MAX_SIZE)
@@ -149,12 +147,12 @@ func (p *dataPackage) UnmarshalBinary(data []byte) (err error) {
 		&err,
 		// Key Pack
 		func() {
-			keyPack, ok = keysstorage.GetKeyPack(p.channelId)
+			keyPack, ok = keysstorage.GetKeyPack(p.ChannelId)
 			if !ok {
 				err = ErrNoKeyPack
 			}
 		},
-		// Event and Payload Key
+		// ID and Payload Key
 		func() {
 			idKey = make([]byte, utils.INT_MAX_SIZE)
 			_, err = keyPack.Keys[keysstorage.PACK_IN+keysstorage.PACK_ID_KEY].ReadAt(idKey, idKeyPos+utils.UUID_SIZE)
@@ -163,6 +161,7 @@ func (p *dataPackage) UnmarshalBinary(data []byte) (err error) {
 		},
 		func() {
 			fmt.Printf(">>> Payload key pos enc frag: %v\n", data[:utils.INT_MAX_SIZE])
+
 			goslice.SetResult(tmpNum, goslice.Xor, data[:utils.INT_MAX_SIZE], idKey)
 			payloadKeyPos, payloadKeyPosLen = utils.BytesToInt64(tmpNum)
 			data = data[payloadKeyPosLen:]
@@ -176,20 +175,21 @@ func (p *dataPackage) UnmarshalBinary(data []byte) (err error) {
 			fmt.Printf(">>> Payload key frag: %v\n", payloadKey[:utils.INT_MAX_SIZE])
 
 			goslice.SetResult(tmpNum, goslice.Xor, data[:utils.INT_MAX_SIZE], payloadKey)
-			eventSize, eventSizeLen = utils.BytesToInt64(tmpNum)
-			data = data[eventSizeLen:]
+			payloadSize, payloadSizeLen = utils.BytesToInt64(tmpNum)
+			data = data[payloadSizeLen:]
 
-			fmt.Printf(">>> Event size: %v\n", eventSize)
+			fmt.Printf(">>> Payload size: %v\n", payloadSize)
 
-			payloadKey = make([]byte, eventSize)
-			_, err = keyPack.Keys[keysstorage.PACK_IN+keysstorage.PACK_PAYLOAD_KEY].ReadAt(payloadKey, payloadKeyPos+int64(eventSizeLen))
+			payloadKey = make([]byte, payloadSize)
+			_, err = keyPack.Keys[keysstorage.PACK_IN+keysstorage.PACK_PAYLOAD_KEY].ReadAt(payloadKey, payloadKeyPos+int64(payloadSizeLen))
 		},
 		func() {
 			fmt.Printf(">>> Event enc frag: %v\n", data[:utils.INT_MAX_SIZE])
 			fmt.Printf(">>> Event payload key frag: %v\n", payloadKey[:utils.INT_MAX_SIZE])
-			goslice.Xor(data[:eventSize], payloadKey[:eventSize])
+
+			goslice.SetResult(p.Payload, goslice.Xor, data[:payloadSize], payloadKey[:payloadSize])
+
 			fmt.Printf(">>> Event dec frag: %v\n", data[:utils.INT_MAX_SIZE])
-			err = p.event.UnmarshalBinary(data[:eventSize])
 		},
 	)
 }

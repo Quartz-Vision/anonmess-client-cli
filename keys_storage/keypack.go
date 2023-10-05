@@ -43,16 +43,16 @@ type keymapping [PACK_LEN]*Key
 type posmapping [PACK_BASE_LEN]*KeyPosition
 
 type KeyPack struct {
-	PackId      uuid.UUID
-	Keys        keymapping
-	KeyPostions posmapping
+	PackId       uuid.UUID
+	Keys         keymapping
+	KeyPositions posmapping
 }
 
 func newKeyPack(packId uuid.UUID) (keyPack *KeyPack, err error) {
 	keyPack = &KeyPack{
-		PackId:      packId,
-		Keys:        keymapping{},
-		KeyPostions: posmapping{},
+		PackId:       packId,
+		Keys:         keymapping{},
+		KeyPositions: posmapping{},
 	}
 
 	for i := range keyPack.Keys {
@@ -61,8 +61,8 @@ func newKeyPack(packId uuid.UUID) (keyPack *KeyPack, err error) {
 			return nil, err
 		}
 	}
-	for i := range keyPack.KeyPostions {
-		keyPack.KeyPostions[i], err = NewKeyPosition(packId, keyPrefixes[i][1], keyPrefixes[i][0])
+	for i := range keyPack.KeyPositions {
+		keyPack.KeyPositions[i], err = NewKeyPosition(packId, keyPrefixes[i][1], keyPrefixes[i][0])
 		if err != nil {
 			return nil, err
 		}

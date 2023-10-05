@@ -1,7 +1,7 @@
 package clientsdk
 
 import (
-	anoncastsdk "quartzvision/anonmess-client-cli/anoncast_sdk"
+	"quartzvision/anonmess-client-cli/anoncastsdk"
 	"quartzvision/anonmess-client-cli/events"
 	"quartzvision/anonmess-client-cli/utils"
 
