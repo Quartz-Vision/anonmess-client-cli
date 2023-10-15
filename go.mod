@@ -35,7 +35,7 @@ require (
 
 require (
 	github.com/Quartz-Vision/gocrypt v1.0.0
-	github.com/Quartz-Vision/gofile v1.0.2
+	github.com/Quartz-Vision/gofile v1.3.2
 	github.com/Quartz-Vision/goslice v1.0.0
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/gobwas/ws v1.3.0

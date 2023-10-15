@@ -1,10 +1,11 @@
-package keysstorage
+package keystorage
 
 import (
-	"io/fs"
 	"quartzvision/anonmess-client-cli/utils"
 
 	"github.com/Quartz-Vision/gofile"
+
+	"github.com/google/uuid"
 )
 
 // KeyPosition takes care for accessing and storing current key position, that can be used for encoding/decoding
@@ -13,19 +14,15 @@ type KeyPosition struct {
 	file gofile.File
 }
 
-func NewKeyPosition(filePath string, perm fs.FileMode) (pos *KeyPosition, err error) {
+func NewKeyPosition(packId uuid.UUID, keyPrefix string, packPrefix string) (pos *KeyPosition, err error) {
 	var file gofile.File
 
 	return pos, utils.UntilErrorPointer(
 		&err,
 		func() {
-			file, err = gofile.NewFile(filePath, 0o600)
+			file, err = gofile.NewFile(keyPath(packId, packPrefix, keyPrefix, PACK_PREFIX_POS), 0o600)
 		},
-		func() {
-			if size, err := file.Size(); size == 0 && err == nil {
-				_, err = file.Write(utils.Int64ToBytes(0))
-			}
-		},
+		func() { _, err = file.Write(utils.Int64ToBytes(0)) },
 		func() {
 			pos = &KeyPosition{
 				file: file,

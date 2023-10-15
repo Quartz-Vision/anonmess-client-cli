@@ -68,7 +68,7 @@ func TryDecodePackId(idKeyPos int64, encId []byte) (id uuid.UUID, ok bool) {
 	for id := range packs {
 		copy(tmpEncId, encId)
 
-		_, err := packs[id].Keys[PACK_IN+PACK_ID_KEY].ReadAt(key, idKeyPos)
+		_, err := packs[id].IdIn.ReadAt(key, idKeyPos)
 
 		if err == nil && symmetric.Decode(tmpEncId, key) == nil && goslice.Equal(tmpEncId, id[:]) {
 			return id, true

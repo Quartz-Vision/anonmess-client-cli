@@ -7,8 +7,6 @@ import (
 	"github.com/Quartz-Vision/gofile"
 )
 
-const POS_REWIND = -1
-
 type KeyBuffer struct {
 	*gofile.BufferedFile
 }

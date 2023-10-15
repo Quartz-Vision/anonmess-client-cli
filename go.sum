@@ -4,8 +4,8 @@ github.com/OneOfOne/xxhash v1.2.2 h1:KMrpdQIwFcEqXDklaen+P1axHaj9BSKzvpUUfnHldSE
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/Quartz-Vision/gocrypt v1.0.0 h1:vaNVCxcWkZLRZeqT8KUy1dGxOX9fypdoC2eaV8OEgW8=
 github.com/Quartz-Vision/gocrypt v1.0.0/go.mod h1:fNgAhLchwqWq8hEl+7Au1fltBBq4vGUCv00IrWxhPrI=
-github.com/Quartz-Vision/gofile v1.0.2 h1:ryNP+LYCQz+brEY2nSGnkbcxXu+aCSyub88j4UVV2Xc=
-github.com/Quartz-Vision/gofile v1.0.2/go.mod h1:WlUXe4xm0iqEMWaYy3cnmn/aiskd9bMKOl3OywPZR2k=
+github.com/Quartz-Vision/gofile v1.3.2 h1:KPV3ghSYkXxGeiEQpgMJWJ2njr0RWKFQ2wXIzWBugOk=
+github.com/Quartz-Vision/gofile v1.3.2/go.mod h1:Us4noqJhRrsRyafZQJlAqvIAHMl/XzRwPFUP8C2AT4I=
 github.com/Quartz-Vision/golog v1.0.2 h1:HLqwlVBT6lE1Yq3+kf/dLRDF9W3j1KX2A+k9CF4jq+w=
 github.com/Quartz-Vision/golog v1.0.2/go.mod h1:XQYujL59v+6tpcyhNaj0qxvUV3IXzkYHR0JrVpvUkPc=
 github.com/Quartz-Vision/goslice v1.0.0 h1:6swJ7QkhV8Q5uS0UFOTcExRS+HTephBu+qC/xR88dCY=

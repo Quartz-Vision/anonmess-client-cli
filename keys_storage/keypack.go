@@ -13,59 +13,41 @@ import (
 // It can be easily extended, you just need to add new constants before `PACK_BASE_LEN`
 // and then add new keys to the `keyPrefixes``
 
-const (
-	PACK_PREFIX_IN          = "in"
-	PACK_PREFIX_OUT         = "out"
-	PACK_PREFIX_ID_KEY      = "id"
-	PACK_PREFIX_POS         = "pos"
-	PACK_PREFIX_PAYLOAD_KEY = "data"
-)
-const (
-	PACK_ID_KEY = iota
-	PACK_PAYLOAD_KEY
-	PACK_BASE_LEN
-)
-const (
-	PACK_IN = iota * PACK_BASE_LEN
-	PACK_OUT
-	PACK_IO_LEN = iota
-	PACK_LEN    = PACK_IO_LEN * PACK_BASE_LEN
-)
-
-var keyPrefixes = [PACK_LEN][2]string{
-	PACK_IN + PACK_ID_KEY:       {PACK_PREFIX_IN, PACK_PREFIX_ID_KEY},
-	PACK_IN + PACK_PAYLOAD_KEY:  {PACK_PREFIX_IN, PACK_PREFIX_PAYLOAD_KEY},
-	PACK_OUT + PACK_ID_KEY:      {PACK_PREFIX_OUT, PACK_PREFIX_ID_KEY},
-	PACK_OUT + PACK_PAYLOAD_KEY: {PACK_PREFIX_OUT, PACK_PREFIX_PAYLOAD_KEY},
-}
-
-type keymapping [PACK_LEN]*Key
-type posmapping [PACK_BASE_LEN]*KeyPosition
-
 type KeyPack struct {
-	PackId       uuid.UUID
-	Keys         keymapping
-	KeyPositions posmapping
+	PackId     uuid.UUID
+	IdIn       *Key
+	IdOut      *Key
+	PayloadIn  *Key
+	PayloadOut *Key
+	keys       [4]*Key
 }
 
 func newKeyPack(packId uuid.UUID) (keyPack *KeyPack, err error) {
 	keyPack = &KeyPack{
-		PackId:       packId,
-		Keys:         keymapping{},
-		KeyPositions: posmapping{},
+		PackId: packId,
 	}
 
-	for i := range keyPack.Keys {
-		keyPack.Keys[i], err = NewKey(packId, keyPrefixes[i][1], keyPrefixes[i][0], keyPrefixes[(i+PACK_BASE_LEN)%PACK_LEN][0])
-		if err != nil {
-			return nil, err
-		}
-	}
-	for i := range keyPack.KeyPositions {
-		keyPack.KeyPositions[i], err = NewKeyPosition(packId, keyPrefixes[i][1], keyPrefixes[i][0])
-		if err != nil {
-			return nil, err
-		}
+	if utils.UntilErrorPointer(
+		&err,
+		func() {
+			keyPack.IdIn, err = NewKey(packId, KeyId, KeyIn)
+			keyPack.keys[0] = keyPack.IdIn
+		},
+		func() {
+			keyPack.IdOut, err = NewKey(packId, KeyId, KeyOut)
+			keyPack.keys[1] = keyPack.IdOut
+		},
+		func() {
+			keyPack.PayloadIn, err = NewKey(packId, KeyPayload, KeyIn)
+			keyPack.keys[2] = keyPack.PayloadIn
+		},
+		func() {
+			keyPack.PayloadOut, err = NewKey(packId, KeyPayload, KeyOut)
+			keyPack.keys[3] = keyPack.PayloadOut
+		},
+	) != nil {
+		keyPack.Close()
+		keyPack = nil
 	}
 
 	return keyPack, err
@@ -98,8 +80,8 @@ func importSharedKeyPack(packId uuid.UUID, src string) (keyPack *KeyPack, err er
 
 // generates new key part of the same size for all of the keys
 func (p *KeyPack) GenerateKey(keySize int64) (err error) {
-	for i := range p.Keys {
-		err = p.Keys[i].GenerateKey(keySize)
+	for i := range p.keys {
+		err = p.keys[i].GenerateKey(keySize)
 		if err != nil {
 			return err
 		}
@@ -118,8 +100,8 @@ func (p *KeyPack) ExportShared(dest string) (err error) {
 		func() {
 			packageFile.Close()
 
-			for i := range p.Keys {
-				err = p.Keys[i].ExportShared(dest)
+			for i := range p.keys {
+				err = p.keys[i].ExportShared(dest)
 				if err != nil {
 					return
 				}
@@ -129,8 +111,8 @@ func (p *KeyPack) ExportShared(dest string) (err error) {
 }
 
 func (p *KeyPack) ImportShared(src string) (err error) {
-	for i := range p.Keys {
-		err = p.Keys[i].ImportShared(src)
+	for i := range p.keys {
+		err = p.keys[i].ImportShared(src)
 		if err != nil {
 			return err
 		}
@@ -139,7 +121,7 @@ func (p *KeyPack) ImportShared(src string) (err error) {
 }
 
 func (p *KeyPack) Close() {
-	for i := range p.Keys {
-		safeClose(p.Keys[i])
+	for key := range p.keys {
+		safeClose(p.keys[key])
 	}
 }

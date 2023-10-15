@@ -2,7 +2,6 @@ package anoncastsdk
 
 import (
 	"errors"
-	"fmt"
 	keysstorage "quartzvision/anonmess-client-cli/keys_storage"
 	"quartzvision/anonmess-client-cli/utils"
 
@@ -47,14 +46,15 @@ func (p *DataPackage) MarshalBinary() (data []byte, err error) {
 				err = ErrNoKeyPack
 			}
 		},
-		// Event and Payload Key
+		// Payload size encoding
 		func() {
 			payloadSize = len(payload)
 			payloadSizeEnc = utils.Int64ToBytes(int64(payloadSize))
 			payloadSizeEncSize = len(payloadSizeEnc)
 		},
+		// Reading Payload Key
 		func() {
-			payloadKeyPos, err = keyPack.KeyPositions[keysstorage.PACK_PAYLOAD_KEY].Take(
+			payloadKeyPos, err = keyPack.PayloadOut.Pos.Take(
 				int64(payloadSize + payloadSizeEncSize),
 			)
 			payloadKeyPosEnc = utils.Int64ToBytes(payloadKeyPos)
@@ -62,15 +62,15 @@ func (p *DataPackage) MarshalBinary() (data []byte, err error) {
 		},
 		func() {
 			payloadKey = make([]byte, payloadSize+payloadSizeEncSize)
-			_, err = keyPack.Keys[keysstorage.PACK_OUT+keysstorage.PACK_PAYLOAD_KEY].ReadAt(payloadKey, payloadKeyPos)
+			_, err = keyPack.PayloadOut.ReadAt(payloadKey, payloadKeyPos)
 		},
-		// ID Key
+		// Reading ID Key
 		func() {
-			idKeyPos, err = keyPack.KeyPositions[keysstorage.PACK_ID_KEY].Take(utils.UUID_SIZE + int64(payloadKeyPosEncSize))
+			idKeyPos, err = keyPack.IdOut.Pos.Take(utils.UUID_SIZE + int64(payloadKeyPosEncSize))
 		},
 		func() {
 			idKey = make([]byte, utils.UUID_SIZE+payloadKeyPosEncSize)
-			_, err = keyPack.Keys[keysstorage.PACK_OUT+keysstorage.PACK_ID_KEY].ReadAt(idKey, idKeyPos)
+			_, err = keyPack.IdOut.ReadAt(idKey, idKeyPos)
 		},
 	)
 
@@ -85,21 +85,10 @@ func (p *DataPackage) MarshalBinary() (data []byte, err error) {
 
 	encodedData := make([]byte, len(packageSizeEnc)+packageSize)
 
-	fmt.Printf("<<< Id key frag: %v\n", idKey[utils.UUID_SIZE:utils.UUID_SIZE+utils.INT_MAX_SIZE])
-	fmt.Printf("<<< Id key pos: %v\n", idKeyPos)
-	fmt.Printf("<<< Payload key frag: %v\n", payloadKey[:utils.INT_MAX_SIZE])
-	fmt.Printf("<<< Payload key pos: %v\n", payloadKeyPos)
-	fmt.Printf("<<< Event size: %v\n", payloadSize)
-	fmt.Printf("<<< Event dec frag: %v\n", payload[:utils.INT_MAX_SIZE])
-
 	goslice.Xor(channelId, idKey[:utils.UUID_SIZE])
 	goslice.Xor(payloadKeyPosEnc, idKey[utils.UUID_SIZE:])
 	goslice.Xor(payloadSizeEnc, payloadKey[:payloadSizeEncSize])
 	goslice.Xor(payload, payloadKey[payloadSizeEncSize:])
-
-	fmt.Printf("<<< Payload key pos enc frag: %v\n", payloadKeyPosEnc)
-	fmt.Printf("<<< Event enc frag: %v\n", payload[:utils.INT_MAX_SIZE])
-	fmt.Printf("<<< Event payload key frag: %v\n", payloadKey[utils.INT_MAX_SIZE:utils.INT_MAX_SIZE*2])
 
 	goslice.Join(
 		encodedData,
@@ -122,8 +111,6 @@ func (p *DataPackage) UnmarshalBinary(data []byte) (err error) {
 
 	idKeyPos, idKeyPosLen := utils.BytesToInt64(data[:utils.INT_MAX_SIZE])
 	data = data[idKeyPosLen:]
-
-	fmt.Printf(">>> Id key pos: %v\n", idKeyPos)
 
 	var ok bool
 	// Don't use utils for the error here since we need maximal speed
@@ -155,41 +142,27 @@ func (p *DataPackage) UnmarshalBinary(data []byte) (err error) {
 		// ID and Payload Key
 		func() {
 			idKey = make([]byte, utils.INT_MAX_SIZE)
-			_, err = keyPack.Keys[keysstorage.PACK_IN+keysstorage.PACK_ID_KEY].ReadAt(idKey, idKeyPos+utils.UUID_SIZE)
-
-			fmt.Printf(">>> Id key frag: %v\n", idKey[:utils.INT_MAX_SIZE])
+			_, err = keyPack.IdIn.ReadAt(idKey, idKeyPos+utils.UUID_SIZE)
 		},
 		func() {
-			fmt.Printf(">>> Payload key pos enc frag: %v\n", data[:utils.INT_MAX_SIZE])
-
 			goslice.SetResult(tmpNum, goslice.Xor, data[:utils.INT_MAX_SIZE], idKey)
 			payloadKeyPos, payloadKeyPosLen = utils.BytesToInt64(tmpNum)
 			data = data[payloadKeyPosLen:]
 
-			fmt.Printf(">>> Payload key pos: %v\n", payloadKeyPos)
-
 			payloadKey = make([]byte, utils.INT_MAX_SIZE)
-			_, err = keyPack.Keys[keysstorage.PACK_IN+keysstorage.PACK_PAYLOAD_KEY].ReadAt(payloadKey, payloadKeyPos)
+			_, err = keyPack.PayloadIn.ReadAt(payloadKey, payloadKeyPos)
 		},
 		func() {
-			fmt.Printf(">>> Payload key frag: %v\n", payloadKey[:utils.INT_MAX_SIZE])
-
 			goslice.SetResult(tmpNum, goslice.Xor, data[:utils.INT_MAX_SIZE], payloadKey)
 			payloadSize, payloadSizeLen = utils.BytesToInt64(tmpNum)
 			data = data[payloadSizeLen:]
 
-			fmt.Printf(">>> Payload size: %v\n", payloadSize)
-
 			payloadKey = make([]byte, payloadSize)
-			_, err = keyPack.Keys[keysstorage.PACK_IN+keysstorage.PACK_PAYLOAD_KEY].ReadAt(payloadKey, payloadKeyPos+int64(payloadSizeLen))
+			_, err = keyPack.PayloadIn.ReadAt(payloadKey, payloadKeyPos+int64(payloadSizeLen))
 		},
+		// Decoding the payload
 		func() {
-			fmt.Printf(">>> Event enc frag: %v\n", data[:utils.INT_MAX_SIZE])
-			fmt.Printf(">>> Event payload key frag: %v\n", payloadKey[:utils.INT_MAX_SIZE])
-
 			goslice.SetResult(p.Payload, goslice.Xor, data[:payloadSize], payloadKey[:payloadSize])
-
-			fmt.Printf(">>> Event dec frag: %v\n", data[:utils.INT_MAX_SIZE])
 		},
 	)
 }
