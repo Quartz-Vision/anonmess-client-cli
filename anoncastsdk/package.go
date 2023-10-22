@@ -10,6 +10,7 @@ import (
 )
 
 type DataPackage struct {
+	client    *Client
 	ChannelId uuid.UUID
 	Payload   []byte
 }
@@ -41,7 +42,7 @@ func (p *DataPackage) MarshalBinary() (data []byte, err error) {
 		&err,
 		// Key Pack
 		func() {
-			keyPack, ok = keysstorage.GetKeyPack(p.ChannelId)
+			keyPack, ok = p.client.Keystore.GetKeyPack(p.ChannelId)
 			if !ok {
 				err = ErrNoKeyPack
 			}
@@ -114,7 +115,7 @@ func (p *DataPackage) UnmarshalBinary(data []byte) (err error) {
 
 	var ok bool
 	// Don't use utils for the error here since we need maximal speed
-	if p.ChannelId, ok = keysstorage.TryDecodePackId(idKeyPos, data[:utils.UUID_SIZE]); !ok {
+	if p.ChannelId, ok = p.client.Keystore.TryDecodePackId(idKeyPos, data[:utils.UUID_SIZE]); !ok {
 		return ErrKeyPackIdDecodeFailed
 	}
 	data = data[utils.UUID_SIZE:]
@@ -134,7 +135,7 @@ func (p *DataPackage) UnmarshalBinary(data []byte) (err error) {
 		&err,
 		// Key Pack
 		func() {
-			keyPack, ok = keysstorage.GetKeyPack(p.ChannelId)
+			keyPack, ok = p.client.Keystore.GetKeyPack(p.ChannelId)
 			if !ok {
 				err = ErrNoKeyPack
 			}

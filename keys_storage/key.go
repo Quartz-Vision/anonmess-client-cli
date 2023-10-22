@@ -1,9 +1,8 @@
 package keysstorage
 
 import (
-	"os"
+	"path"
 	"path/filepath"
-	"quartzvision/anonmess-client-cli/settings"
 	"quartzvision/anonmess-client-cli/utils"
 
 	"github.com/Quartz-Vision/gocrypt/random"
@@ -11,8 +10,6 @@ import (
 
 	"github.com/google/uuid"
 )
-
-const defaultPermMode = 0o600
 
 type KeyType int
 
@@ -39,8 +36,6 @@ const (
 	KeyOut
 )
 
-const keyPosPrefix = "pos"
-
 func (k KeyDirection) String() string {
 	switch k {
 	case KeyIn:
@@ -52,43 +47,36 @@ func (k KeyDirection) String() string {
 	}
 }
 
+const keyPosPrefix = "pos"
+
 type Key struct {
 	*gofile.BufferedFile
 	KeyType      KeyType
 	KeyDirection KeyDirection
 	Pos          *KeyPosition
+	pack         *KeyPack
 }
 
 func MakeKeyName(keyType KeyType, keyDirection KeyDirection) string {
 	return keyType.String() + "-" + keyDirection.String()
 }
 
-func MakeKeyPath(packId uuid.UUID, keyType KeyType, keyDirection KeyDirection) string {
-	return filepath.Join(
-		settings.Config.AppDataDirPath,
-		settings.Config.KeysStorageDefaultDirName,
-		packId.String(),
-		MakeKeyName(keyType, keyDirection),
-	)
-}
-
-func NewKey(packId uuid.UUID, keyType KeyType, keyDirection KeyDirection) (key *Key, err error) {
+func NewKey(pack *KeyPack, packId uuid.UUID, keyType KeyType, keyDirection KeyDirection) (key *Key, err error) {
 	var keyPosition *KeyPosition
-	path := MakeKeyPath(packId, keyType, keyDirection)
-	os.MkdirAll(filepath.Dir(path), defaultPermMode)
+	path := path.Join(pack.packPath, MakeKeyName(keyType, keyDirection))
 
-	file, err := gofile.NewFile(path, defaultPermMode)
+	file, err := gofile.NewFile(path, DefaultPermMode)
 	if err != nil {
 		return nil, err
 	}
 
-	bf, err := gofile.NewBufferedFile(file, settings.Config.KeysBufferSizeB)
+	bf, err := gofile.NewBufferedFile(file, pack.manager.bufferSize)
 	if err != nil {
 		return nil, err
 	}
 
 	if keyDirection == KeyOut {
-		keyPosition, err = NewKeyPosition(path+keyPosPrefix, defaultPermMode)
+		keyPosition, err = NewKeyPosition(path+keyPosPrefix, DefaultPermMode)
 		if err != nil {
 			file.Close()
 			return nil, err
@@ -96,6 +84,7 @@ func NewKey(packId uuid.UUID, keyType KeyType, keyDirection KeyDirection) (key *
 	}
 
 	return &Key{
+		pack:         pack,
 		BufferedFile: bf,
 		KeyType:      keyType,
 		KeyDirection: keyDirection,
@@ -116,10 +105,10 @@ func (k *Key) ExportShared(dest string) (err error) {
 	return utils.UntilErrorPointer(
 		&err,
 		func() {
-			file, err = gofile.NewFile(filepath.Join(dest, MakeKeyName(k.KeyType, direction)), defaultPermMode)
+			file, err = gofile.NewFile(filepath.Join(dest, MakeKeyName(k.KeyType, direction)), DefaultPermMode)
 		},
 		func() { err = file.Trunc() },
-		func() { err = k.PipeTo(file, settings.Config.KeysBufferSizeB) },
+		func() { err = k.PipeTo(file, k.BufferSize) },
 		func() { file.Close() },
 	)
 }
@@ -130,11 +119,15 @@ func (k *Key) ImportShared(src string) (err error) {
 	return utils.UntilErrorPointer(
 		&err,
 		func() {
-			file, err = gofile.NewFile(filepath.Join(src, MakeKeyName(k.KeyType, k.KeyDirection)), defaultPermMode)
+			file, err = gofile.NewFile(filepath.Join(src, MakeKeyName(k.KeyType, k.KeyDirection)), DefaultPermMode)
 		},
-		func() { err = file.PipeTo(k, settings.Config.KeysBufferSizeB) },
+		func() { err = file.PipeTo(k, k.BufferSize) },
 		func() { file.Close() },
 	)
+}
+
+func (k *Key) Length() (length int64, err error) {
+	return k.BufferedFile.Size()
 }
 
 // Generates new key parts

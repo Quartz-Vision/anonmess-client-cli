@@ -15,6 +15,7 @@ type KeyPosition struct {
 
 func NewKeyPosition(filePath string, perm fs.FileMode) (pos *KeyPosition, err error) {
 	var file gofile.File
+	var size int64
 
 	return pos, utils.UntilErrorPointer(
 		&err,
@@ -22,7 +23,7 @@ func NewKeyPosition(filePath string, perm fs.FileMode) (pos *KeyPosition, err er
 			file, err = gofile.NewFile(filePath, 0o600)
 		},
 		func() {
-			if size, err := file.Size(); size == 0 && err == nil {
+			if size, err = file.Size(); size == 0 && err == nil {
 				_, err = file.Write(utils.Int64ToBytes(0))
 			}
 		},

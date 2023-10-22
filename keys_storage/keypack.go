@@ -1,6 +1,7 @@
 package keysstorage
 
 import (
+	"os"
 	"path/filepath"
 	"quartzvision/anonmess-client-cli/utils"
 
@@ -9,40 +10,46 @@ import (
 	"github.com/google/uuid"
 )
 
-// KeyPack contains all the keys needed for a chat - id key, payload key etc. Also their positions
-// It can be easily extended, you just need to add new constants before `PACK_BASE_LEN`
-// and then add new keys to the `keyPrefixes``
-
+// KeyPack contains all the keys needed for a chat - id key, payload key etc
 type KeyPack struct {
+	manager    *KeysManager
 	PackId     uuid.UUID
 	IdIn       *Key
 	IdOut      *Key
 	PayloadIn  *Key
 	PayloadOut *Key
 	keys       [4]*Key
+	packPath   string
 }
 
-func newKeyPack(packId uuid.UUID) (keyPack *KeyPack, err error) {
+func newKeyPack(manager *KeysManager, packId uuid.UUID) (keyPack *KeyPack, err error) {
 	keyPack = &KeyPack{
-		PackId: packId,
+		PackId:   packId,
+		manager:  manager,
+		packPath: filepath.Join(manager.packsPath, packId.String()),
 	}
 
 	if utils.UntilErrorPointer(
 		&err,
 		func() {
-			keyPack.IdIn, err = NewKey(packId, KeyId, KeyIn)
+			if _, err = os.Stat(keyPack.packPath); os.IsNotExist(err) {
+				err = os.MkdirAll(keyPack.packPath, DefaultPermMode)
+			}
+		},
+		func() {
+			keyPack.IdIn, err = NewKey(keyPack, packId, KeyId, KeyIn)
 			keyPack.keys[0] = keyPack.IdIn
 		},
 		func() {
-			keyPack.IdOut, err = NewKey(packId, KeyId, KeyOut)
+			keyPack.IdOut, err = NewKey(keyPack, packId, KeyId, KeyOut)
 			keyPack.keys[1] = keyPack.IdOut
 		},
 		func() {
-			keyPack.PayloadIn, err = NewKey(packId, KeyPayload, KeyIn)
+			keyPack.PayloadIn, err = NewKey(keyPack, packId, KeyPayload, KeyIn)
 			keyPack.keys[2] = keyPack.PayloadIn
 		},
 		func() {
-			keyPack.PayloadOut, err = NewKey(packId, KeyPayload, KeyOut)
+			keyPack.PayloadOut, err = NewKey(keyPack, packId, KeyPayload, KeyOut)
 			keyPack.keys[3] = keyPack.PayloadOut
 		},
 	) != nil {
@@ -68,10 +75,10 @@ func getSharedPackId(src string) (packId uuid.UUID, err error) {
 	return packId, err
 }
 
-func importSharedKeyPack(packId uuid.UUID, src string) (keyPack *KeyPack, err error) {
+func importSharedKeyPack(manager *KeysManager, packId uuid.UUID, src string) (keyPack *KeyPack, err error) {
 	utils.UntilErrorPointer(
 		&err,
-		func() { keyPack, err = newKeyPack(packId) },
+		func() { keyPack, err = newKeyPack(manager, packId) },
 		func() { err = keyPack.ImportShared(src) },
 	)
 
@@ -122,6 +129,6 @@ func (p *KeyPack) ImportShared(src string) (err error) {
 
 func (p *KeyPack) Close() {
 	for key := range p.keys {
-		safeClose(p.keys[key])
+		SafeClose(p.keys[key])
 	}
 }
